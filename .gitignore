@@ -5,3 +5,7 @@ dist/
 *.db-wal
 *.db-shm
 .CtrlC/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+.beads-credential-key
