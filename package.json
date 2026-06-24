@@ -1,0 +1,29 @@
+{
+  "name": "ctrlc",
+  "version": "0.1.0",
+  "description": "Cross-platform clipboard manager with hotkey-triggered popup",
+  "main": "dist/main/main.js",
+  "author": "Serious Geese, LLC <https://seriousgeese.dev>",
+  "license": "MIT",
+  "scripts": {
+    "start": "tsc && electron .",
+    "dev": "tsc && electron .",
+    "build": "tsc",
+    "build:app": "electron-builder",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^6.0.1",
+    "uuid": "^14.0.1"
+  },
+  "devDependencies": {
+    "@types/electron": "^1.4.38",
+    "@types/node": "^26.0.0",
+    "@types/uuid": "^10.0.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "typescript": "^5.6.0"
+  }
+}
