@@ -3,6 +3,8 @@ import { open, Database } from 'sqlite';
 import { ClipData } from '../../shared/types';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'node:crypto';
+import * as path from 'node:path';
+import * as fs from 'node:fs';
 
 let db: Database | null = null;
 let dbPath: string = '';
@@ -16,6 +18,12 @@ function hashContent(content: string): string {
 }
 
 export async function initDB(): Promise<void> {
+  // Ensure the .config subdirectory exists
+  const dataDir = path.dirname(dbPath || './.config/cutc.db');
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+  }
+
   db = await open({
     filename: dbPath || './.config/cutc.db',
     driver: sqlite3.Database,

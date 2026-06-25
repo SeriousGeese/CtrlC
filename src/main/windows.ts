@@ -29,7 +29,7 @@ export class SettingsManager {
       },
     });
 
-    void this.window.loadFile(path.join(__dirname, '../../renderer/settings.html'));
+    void this.window.loadFile(path.join(__dirname, '../../src/renderer/settings.html'));
 
     this.window.on('closed', () => {
       this.window = null;
@@ -74,7 +74,7 @@ export class AboutManager {
       },
     });
 
-    void this.window.loadFile(path.join(__dirname, '../../renderer/about.html'));
+    void this.window.loadFile(path.join(__dirname, '../../src/renderer/about.html'));
 
     this.window.on('closed', () => {
       this.window = null;

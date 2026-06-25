@@ -38,12 +38,13 @@ export class TrayManager extends EventEmitter {
   }
 
   private createTray(): void {
-    const iconPath = path.join(__dirname, '../../assets/tray-icon.png');
+    const iconPath = path.join(__dirname, '../../../assets/tray-icon.png');
     const hotkey = this.getHotkeyFromConfig();
 
     let icon: import('electron').NativeImage;
     if (fs.existsSync(iconPath)) {
       icon = nativeImage.createFromPath(iconPath);
+      icon = icon.resize({ width: 22, height: 22 });
     } else {
       icon = nativeImage.createEmpty();
     }

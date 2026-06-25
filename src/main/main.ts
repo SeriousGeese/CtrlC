@@ -46,7 +46,7 @@ function createPopupWindow(): BrowserWindow {
     },
   });
 
-  void win.loadFile(path.join(__dirname, '../../renderer/popup.html'));
+  void win.loadFile(path.join(__dirname, '../../src/renderer/popup.html'));
   win.once('show', () => {
     const pos = popupManager?.getPosition();
     if (pos) {
@@ -120,13 +120,7 @@ function setupIPC(): void {
     popupManager?.close();
   });
 
-  // Windows
-  ipcMain.handle('settings:open', () => {
-    settingsManager?.show();
-  });
-  ipcMain.handle('about:open', () => {
-    aboutManager?.show();
-  });
+  // Windows are handled by SettingsManager and AboutManager constructors
 }
 
 // App lifecycle
@@ -189,6 +183,8 @@ void app.whenReady().then(async () => {
       mainWindow = createPopupWindow();
     }
   });
+}).catch(err => {
+  console.error('CtrlC startup failed:', err);
 });
 
 app.on('window-all-closed', () => {

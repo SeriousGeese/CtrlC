@@ -14,7 +14,16 @@ export class HotkeyManager extends EventEmitter {
   }
 
   registerHotkey(hotkey: string): boolean {
-    globalShortcut.register(hotkey, () => {
+    // Normalize hotkey for Linux
+    let normalizedHotkey = hotkey;
+    if (process.platform === 'linux') {
+      normalizedHotkey = hotkey
+        .replace('CommandOrControl', 'Ctrl')
+        .replace('Command', 'Super')
+        .replace('Backquote', '`');
+    }
+
+    globalShortcut.register(normalizedHotkey, () => {
       // Show popup at center of screen
       // TODO: On Windows/macOS, use cursor position. On Wayland, we need
       // a native sidecar binary to get the actual mouse position.
@@ -25,7 +34,7 @@ export class HotkeyManager extends EventEmitter {
       this.emit('hotkey-pressed', x, y);
     });
 
-    this.hotkey = hotkey;
+    this.hotkey = normalizedHotkey;
     return true;
   }
 
