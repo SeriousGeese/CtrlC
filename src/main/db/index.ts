@@ -82,3 +82,8 @@ export async function closeDB(): Promise<void> {
     db = null;
   }
 }
+
+export function clipExistsByHash(hash: string): Promise<boolean> {
+  return db!.get('SELECT 1 FROM clips WHERE content_hash = ? LIMIT 1', hash)
+    .then((row: any) => row !== undefined);
+}

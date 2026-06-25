@@ -6,12 +6,14 @@ import { initDB, insertClip, getRecentClips, deleteClip, cleanExpiredClips, setD
 import { TrayManager } from './tray/tray';
 import { HotkeyManager } from './hotkey/hotkey';
 import { PopupManager } from './popup/popup';
+import { ClipboardCapture } from './clipboard';
 import { DEFAULT_CONFIG, ClipData } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 let trayManager: TrayManager | null = null;
 let hotkeyManager: HotkeyManager | null = null;
 let popupManager: PopupManager | null = null;
+let clipboardCapture: ClipboardCapture | null = null;
 let config = loadConfig();
 
 // Ensure data directory exists
@@ -82,11 +84,11 @@ function setupIPC(): void {
     return true;
   });
   ipcMain.handle('clips:copy', async (_event, id: string) => {
-    const clips = await getRecentClips(1);
+    const clips = await getRecentClips(config.historyDepth);
     const clip = clips.find((c: ClipData) => c.id === id);
     if (clip) {
       if (clip.type === 'image') {
-        clipboard.writeBuffer('public.jpeg', Buffer.from(clip.content, 'base64'));
+        clipboard.writeBuffer('public.png', Buffer.from(clip.content, 'utf-8'));
       } else if (clip.type === 'html') {
         clipboard.write({ html: clip.content, text: clip.content });
       } else {
@@ -95,6 +97,25 @@ function setupIPC(): void {
       return true;
     }
     return false;
+  });
+  ipcMain.handle('clips:copy-selected', async (_event, id: string) => {
+    const clips = await getRecentClips(config.historyDepth);
+    const clip = clips.find((c: ClipData) => c.id === id);
+    if (clip) {
+      if (clip.type === 'image') {
+        clipboard.writeBuffer('public.png', Buffer.from(clip.content, 'utf-8'));
+      } else if (clip.type === 'html') {
+        clipboard.write({ html: clip.content, text: clip.content });
+      } else {
+        clipboard.writeText(clip.content);
+      }
+      return true;
+    }
+    return false;
+  });
+  ipcMain.handle('clips:capture', () => {
+    clipboardCapture?.captureCurrent();
+    return true;
   });
 
   // Popup

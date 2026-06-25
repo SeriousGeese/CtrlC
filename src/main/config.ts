@@ -108,16 +108,15 @@ export function loadConfig(): AppConfig {
     const content = fs.readFileSync(configPath, 'utf-8');
     const parsed = parseToml(content);
 
-    fileConfig = {
-      hotkey: parsed.hotkey as string,
-      historyDepth: parsed.historyDepth as number,
-      retentionDays: parsed.retentionDays as number,
-      saveImages: parsed.saveImages as boolean,
-      saveHtml: parsed.saveHtml as boolean,
-      saveBinary: parsed.saveBinary as boolean,
-      autoStart: parsed.autoStart as boolean,
-      dataDir: parsed.dataDir as string,
-    };
+    fileConfig = {};
+    if (parsed.hotkey !== undefined) (fileConfig as any).hotkey = parsed.hotkey as string;
+    if (parsed.historyDepth !== undefined) (fileConfig as any).historyDepth = parsed.historyDepth as number;
+    if (parsed.retentionDays !== undefined) (fileConfig as any).retentionDays = parsed.retentionDays as number;
+    if (parsed.saveImages !== undefined) (fileConfig as any).saveImages = parsed.saveImages as boolean;
+    if (parsed.saveHtml !== undefined) (fileConfig as any).saveHtml = parsed.saveHtml as boolean;
+    if (parsed.saveBinary !== undefined) (fileConfig as any).saveBinary = parsed.saveBinary as boolean;
+    if (parsed.autoStart !== undefined) (fileConfig as any).autoStart = parsed.autoStart as boolean;
+    if (parsed.dataDir !== undefined) (fileConfig as any).dataDir = parsed.dataDir as string;
   }
 
   return {
