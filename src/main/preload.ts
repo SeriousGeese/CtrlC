@@ -11,15 +11,16 @@ contextBridge.exposeInMainWorld('ctrlc', {
   getRecentClips: () => ipcRenderer.invoke('clips:get-recent'),
   deleteClip: (id: string) => ipcRenderer.invoke('clips:delete', id),
   copyClip: (id: string) => ipcRenderer.invoke('clips:copy', id),
+  capture: () => ipcRenderer.invoke('clips:capture'),
 
   // Popup
   showPopup: (x: number, y: number) =>
     ipcRenderer.invoke('popup:show', x, y),
   closePopup: () => ipcRenderer.invoke('popup:close'),
 
-  // Navigation
-  showAbout: () => ipcRenderer.invoke('nav:about'),
-  showSettings: () => ipcRenderer.invoke('nav:settings'),
+  // Windows
+  openSettings: () => ipcRenderer.invoke('settings:open'),
+  openAbout: () => ipcRenderer.invoke('about:open'),
 });
 
 declare global {
@@ -30,10 +31,11 @@ declare global {
       getRecentClips: () => Promise<ClipData[]>;
       deleteClip: (id: string) => Promise<boolean>;
       copyClip: (id: string) => Promise<boolean>;
+      capture: () => Promise<boolean>;
       showPopup: (x: number, y: number) => Promise<void>;
       closePopup: () => Promise<void>;
-      showAbout: () => Promise<void>;
-      showSettings: () => Promise<void>;
+      openSettings: () => Promise<void>;
+      openAbout: () => Promise<void>;
     };
   }
 }

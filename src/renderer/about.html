@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About CtrlC</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 13px;
+      background: #0a0a0a;
+      color: #00ff00;
+      min-width: 320px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      user-select: none;
+    }
+
+    .about-box {
+      text-align: center;
+      padding: 32px 40px;
+      border: 1px solid rgba(0, 255, 0, 0.15);
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    .logo {
+      font-size: 48px;
+      font-weight: 700;
+      color: #00ff00;
+      margin-bottom: 4px;
+      letter-spacing: 2px;
+    }
+
+    .version {
+      font-size: 11px;
+      color: rgba(0, 255, 0, 0.4);
+      margin-bottom: 20px;
+    }
+
+    .description {
+      font-size: 12px;
+      color: rgba(0, 255, 0, 0.6);
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+
+    .separator {
+      border: none;
+      border-top: 1px solid rgba(0, 255, 0, 0.1);
+      margin: 16px 0;
+    }
+
+    .info-row {
+      font-size: 11px;
+      color: rgba(0, 255, 0, 0.5);
+      margin: 6px 0;
+    }
+
+    .brand {
+      margin-top: 16px;
+      font-size: 10px;
+      color: rgba(0, 255, 0, 0.3);
+    }
+
+    .brand a {
+      color: rgba(0, 255, 0, 0.5);
+      text-decoration: none;
+    }
+
+    .brand a:hover {
+      color: #00ff00;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="about-box">
+    <div class="logo">CtrlC</div>
+    <div class="version">v0.1.0</div>
+    <div class="description">
+      Cross-platform clipboard manager<br>
+      for Linux, Windows, and macOS
+    </div>
+    <hr class="separator">
+    <div class="info-row">Hotkey: Ctrl+` (customizable)</div>
+    <div class="info-row">Hotkeys 1–5 to quick-copy from popup</div>
+    <hr class="separator">
+    <div class="brand">
+      <a href="https://seriousgeese.dev" target="_blank">Serious Geese, LLC</a><br>
+      MIT License
+    </div>
+  </div>
+</body>
+</html>

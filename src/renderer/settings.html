@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CtrlC — Settings</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+      font-size: 13px;
+      background: #0a0a0a;
+      color: #00ff00;
+      min-width: 420px;
+      user-select: none;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(0, 255, 0, 0.15);
+      background: rgba(0, 0, 0, 0.8);
+    }
+
+    .header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #00ff00;
+    }
+
+    .content {
+      padding: 16px;
+    }
+
+    .setting-group {
+      margin-bottom: 20px;
+    }
+
+    .setting-group h2 {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: rgba(0, 255, 0, 0.5);
+      margin-bottom: 10px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(0, 255, 0, 0.1);
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+    }
+
+    .setting-row label {
+      color: #00ff00;
+      flex: 1;
+    }
+
+    .setting-row input[type="text"] {
+      width: 180px;
+      background: rgba(0, 255, 0, 0.05);
+      border: 1px solid rgba(0, 255, 0, 0.2);
+      border-radius: 3px;
+      color: #00ff00;
+      padding: 5px 8px;
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .setting-row input[type="text"]:focus {
+      border-color: rgba(0, 255, 0, 0.5);
+    }
+
+    .setting-row input[type="number"] {
+      width: 80px;
+      background: rgba(0, 255, 0, 0.05);
+      border: 1px solid rgba(0, 255, 0, 0.2);
+      border-radius: 3px;
+      color: #00ff00;
+      padding: 5px 8px;
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .setting-row input[type="number"]:focus {
+      border-color: rgba(0, 255, 0, 0.5);
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
+    .toggle input {
+      display: none;
+    }
+
+    .toggle-track {
+      width: 36px;
+      height: 20px;
+      background: rgba(0, 255, 0, 0.1);
+      border: 1px solid rgba(0, 255, 0, 0.2);
+      border-radius: 10px;
+      position: relative;
+      transition: background 0.2s;
+    }
+
+    .toggle input:checked + .toggle-track {
+      background: rgba(0, 255, 0, 0.3);
+      border-color: rgba(0, 255, 0, 0.5);
+    }
+
+    .toggle-track::after {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: rgba(0, 255, 0, 0.4);
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: all 0.2s;
+    }
+
+    .toggle input:checked + .toggle-track::after {
+      left: 18px;
+      background: #00ff00;
+    }
+
+    .hotkey-display {
+      width: 160px;
+      background: rgba(0, 255, 0, 0.05);
+      border: 1px solid rgba(0, 255, 0, 0.2);
+      border-radius: 3px;
+      padding: 5px 8px;
+      font-family: inherit;
+      font-size: 12px;
+      color: #00ff00;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .hotkey-display:hover {
+      border-color: rgba(0, 255, 0, 0.5);
+    }
+
+    .hotkey-display.recording {
+      border-color: #00ff00;
+      background: rgba(0, 255, 0, 0.15);
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .footer {
+      padding: 10px 16px;
+      border-top: 1px solid rgba(0, 255, 0, 0.1);
+      text-align: right;
+      font-size: 10px;
+      color: rgba(0, 255, 0, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Settings</h1>
+  </div>
+
+  <div class="content">
+    <div class="setting-group">
+      <h2>Appearance</h2>
+      <div class="setting-row">
+        <label>History depth</label>
+        <input type="number" id="history-depth" min="10" max="1000" step="10">
+      </div>
+      <div class="setting-row">
+        <label>Retention (days)</label>
+        <input type="number" id="retention-days" min="1" max="365">
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <h2>Save Options</h2>
+      <div class="setting-row">
+        <label>Save images</label>
+        <label class="toggle">
+          <input type="checkbox" id="save-images">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="setting-row">
+        <label>Save HTML</label>
+        <label class="toggle">
+          <input type="checkbox" id="save-html">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="setting-row">
+        <label>Save binary files</label>
+        <label class="toggle">
+          <input type="checkbox" id="save-binary">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <h2>Hotkey</h2>
+      <div class="setting-row">
+        <label>Toggle popup</label>
+        <div class="hotkey-display" id="hotkey-display" title="Click to record">Ctrl+`</div>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <h2>System</h2>
+      <div class="setting-row">
+        <label>Start on login</label>
+        <label class="toggle">
+          <input type="checkbox" id="auto-start">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">CtrlC — Cross-platform clipboard manager</div>
+
+  <script>
+    let currentConfig = null;
+    let isRecording = false;
+
+    async function loadSettings() {
+      currentConfig = await window.ctrlc.getConfig();
+
+      document.getElementById('history-depth').value = currentConfig.historyDepth;
+      document.getElementById('retention-days').value = currentConfig.retentionDays;
+      document.getElementById('save-images').checked = currentConfig.saveImages;
+      document.getElementById('save-html').checked = currentConfig.saveHtml;
+      document.getElementById('save-binary').checked = currentConfig.saveBinary;
+      document.getElementById('auto-start').checked = currentConfig.autoStart;
+      document.getElementById('hotkey-display').textContent = currentConfig.hotkey;
+    }
+
+    async function saveSettings() {
+      const updates = {
+        historyDepth: parseInt(document.getElementById('history-depth').value) || 100,
+        retentionDays: parseInt(document.getElementById('retention-days').value) || 30,
+        saveImages: document.getElementById('save-images').checked,
+        saveHtml: document.getElementById('save-html').checked,
+        saveBinary: document.getElementById('save-binary').checked,
+        autoStart: document.getElementById('auto-start').checked,
+      };
+      await window.ctrlc.updateConfig(updates);
+    }
+
+    function showHotkeyWarning(msg) {
+      const display = document.getElementById('hotkey-display');
+      display.textContent = msg;
+      display.style.color = '#ff0000';
+      setTimeout(() => {
+        display.textContent = currentConfig.hotkey;
+        display.style.color = '#00ff00';
+        display.classList.remove('recording');
+        isRecording = false;
+      }, 2000);
+    }
+
+    function registerHotkey(key) {
+      if (!key.trim()) {
+        showHotkeyWarning('Empty key');
+        return;
+      }
+
+      // Validate key format
+      const parts = key.toUpperCase().split('+');
+      const validModifiers = ['COMMANDORCONTROL', 'COMMAND', 'CTRL', 'CONTROL', 'ALT', 'SHIFT'];
+      let hasModifier = false;
+
+      for (const part of parts.slice(0, -1)) {
+        const p = part.trim().toUpperCase();
+        if (!validModifiers.some(m => p.startsWith(m))) {
+          showHotkeyWarning('Invalid modifier');
+          return;
+        }
+        hasModifier = true;
+      }
+
+      if (!hasModifier || parts.length < 2) {
+        showHotkeyWarning('Need modifier + key');
+        return;
+      }
+
+      // Validate key name
+      const keyName = parts[parts.length - 1].trim();
+      const validKeys = [
+        'BACKQUOTE', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+        'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+        'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10', 'F11', 'F12',
+        'SPACE', 'ENTER', 'TAB', 'ESCAPE', 'DELETE', 'BACKSPACE',
+        'HOME', 'END', 'PAGEUP', 'PAGEDOWN', 'ARROWUP', 'ARROWDOWN', 'ARROWLEFT', 'ARROWRIGHT',
+        'COMMA', 'PERIOD', 'SLASH', 'SEMICOLON', 'QUOTE', 'BACKSLASH',
+        'MINUS', 'EQUAL', 'LEFTBRACKET', 'RIGHTBRACKET',
+      ];
+
+      if (!validKeys.includes(keyName.toUpperCase())) {
+        showHotkeyWarning('Invalid key name');
+        return;
+      }
+
+      currentConfig.hotkey = key;
+      document.getElementById('hotkey-display').textContent = key;
+      window.ctrlc.updateConfig({ hotkey: key }).catch(err => {
+        showHotkeyWarning('Failed: ' + (err?.message || err));
+      });
+    }
+
+    // Event listeners
+    document.getElementById('history-depth').addEventListener('change', saveSettings);
+    document.getElementById('retention-days').addEventListener('change', saveSettings);
+    document.getElementById('save-images').addEventListener('change', saveSettings);
+    document.getElementById('save-html').addEventListener('change', saveSettings);
+    document.getElementById('save-binary').addEventListener('change', saveSettings);
+    document.getElementById('auto-start').addEventListener('change', saveSettings);
+
+    const hotkeyDisplay = document.getElementById('hotkey-display');
+    hotkeyDisplay.addEventListener('click', () => {
+      if (isRecording) return;
+      isRecording = true;
+      hotkeyDisplay.classList.add('recording');
+      hotkeyDisplay.textContent = 'Press new hotkey...';
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (!isRecording) return;
+      e.preventDefault();
+
+      // Build key string
+      const parts = [];
+      if (e.ctrlKey || e.metaKey) parts.push('CommandOrControl');
+      if (e.altKey) parts.push('Alt');
+      if (e.shiftKey) parts.push('Shift');
+
+      let keyName = e.key.toUpperCase();
+      // Normalize common keys
+      if (keyName === 'CONTROL' || keyName === 'SHIFT' || keyName === 'ALT' || keyName === 'META' || keyName === ' ') {
+        keyName = keyName === ' ' ? 'SPACE' : keyName;
+      } else if (keyName === 'BACKQUOTE') {
+        keyName = '`';
+      } else if (keyName.length === 1 && keyName !== 'BACKSPACE' && keyName !== 'ENTER') {
+        keyName = keyName;
+      } else if (keyName.startsWith('ARROW')) {
+        keyName = keyName.replace('ARROW', 'Arrow');
+      }
+
+      const key = parts.join('+') + '+' + keyName;
+      registerHotkey(key);
+    });
+
+    // Auto-save on close
+    const closeBtn = document.createElement('button');
+    closeBtn.style.cssText = 'position:fixed;bottom:10px;right:16px;background:rgba(0,255,0,0.1);border:1px solid rgba(0,255,0,0.2);color:#00ff00;padding:4px 12px;font-family:inherit;font-size:11px;cursor:pointer;border-radius:3px;';
+    closeBtn.textContent = 'Close';
+    closeBtn.addEventListener('click', () => window.close());
+    document.body.appendChild(closeBtn);
+
+    loadSettings();
+  </script>
+</body>
+</html>
