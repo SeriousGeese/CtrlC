@@ -28,13 +28,23 @@ export class TrayManager extends EventEmitter {
               (value.startsWith("'") && value.endsWith("'"))) {
             value = value.slice(1, -1);
           }
-          return value;
+          return this.shortenHotkey(value);
         }
       }
     } catch {
       // ignore
     }
     return 'Ctrl+`';
+  }
+
+  private shortenHotkey(hotkey: string): string {
+    if (!hotkey) return '';
+    return hotkey
+      .replace(/^CommandOrControl\+/g, '')
+      .replace(/^Command\+/g, '')
+      .replace(/^Control\+/g, '')
+      .replace(/\+Backquote/g, '+`')
+      .replace(/\+backquote/g, '+`');
   }
 
   private createTray(): void {

@@ -20,7 +20,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 16px;
+      padding: 10px 16px;
       border-bottom: 1px solid rgba(0, 255, 0, 0.15);
       background: rgba(0, 0, 0, 0.8);
     }
@@ -28,6 +28,21 @@
     .header h1 {
       font-size: 14px;
       font-weight: 600;
+      color: #00ff00;
+    }
+
+    .header-close {
+      background: none;
+      border: none;
+      color: rgba(0, 255, 0, 0.5);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 0 4px;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+
+    .header-close:hover {
       color: #00ff00;
     }
 
@@ -137,8 +152,14 @@
       background: #00ff00;
     }
 
+    .hotkey-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .hotkey-display {
-      width: 160px;
+      flex: 1;
       background: rgba(0, 255, 0, 0.05);
       border: 1px solid rgba(0, 255, 0, 0.2);
       border-radius: 3px;
@@ -148,6 +169,10 @@
       color: #00ff00;
       text-align: center;
       cursor: pointer;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .hotkey-display:hover {
@@ -165,6 +190,29 @@
       50% { opacity: 0.6; }
     }
 
+    .hotkey-cancel {
+      background: none;
+      border: 1px solid rgba(0, 255, 0, 0.2);
+      color: rgba(0, 255, 0, 0.5);
+      font-size: 14px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 3px;
+      transition: all 0.15s;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .hotkey-cancel.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .hotkey-cancel:hover {
+      border-color: rgba(0, 255, 0, 0.5);
+      color: #00ff00;
+    }
+
     .footer {
       padding: 10px 16px;
       border-top: 1px solid rgba(0, 255, 0, 0.1);
@@ -177,11 +225,12 @@
 <body>
   <div class="header">
     <h1>Settings</h1>
+    <button class="header-close" id="close-btn" title="Close (Esc)">✕</button>
   </div>
 
   <div class="content">
     <div class="setting-group">
-      <h2>Appearance</h2>
+      <h2>Retention</h2>
       <div class="setting-row">
         <label>History depth</label>
         <input type="number" id="history-depth" min="10" max="1000" step="10">
@@ -221,7 +270,10 @@
       <h2>Hotkey</h2>
       <div class="setting-row">
         <label>Toggle popup</label>
-        <div class="hotkey-display" id="hotkey-display" title="Click to record">Ctrl+`</div>
+        <div class="hotkey-row">
+          <div class="hotkey-display" id="hotkey-display" title="Click to record">Ctrl+`</div>
+          <button class="hotkey-cancel" id="hotkey-cancel" title="Cancel (Esc)">✕</button>
+        </div>
       </div>
     </div>
 
@@ -243,6 +295,33 @@
     let currentConfig = null;
     let isRecording = false;
 
+    // Get display platform shortcut
+    function getModifierLabel() {
+      return process.platform === 'darwin' ? 'Cmd' : 'Ctrl';
+    }
+
+    // Shorten hotkey display for readability
+    function shortenHotkey(hotkey) {
+      if (!hotkey) return 'Not set';
+      
+      // Replace platform-specific modifiers with short labels
+      let display = hotkey
+        .replace(/^CommandOrControl\+/g, '')
+        .replace(/^Command\+/g, '')
+        .replace(/^Control\+/g, '')
+        .replace(/^Alt\+/g, 'Alt+')
+        .replace(/^Shift\+/g, 'Shift+')
+        .replace(/\+Backquote/g, '+`')
+        .replace(/\+backquote/g, '+`');
+      
+      // Add modifier back with short label
+      if (hotkey.startsWith('CommandOrControl') || hotkey.startsWith('Command') || hotkey.startsWith('Control')) {
+        display = getModifierLabel() + '+' + display;
+      }
+      
+      return display;
+    }
+
     async function loadSettings() {
       currentConfig = await window.ctrlc.getConfig();
 
@@ -252,7 +331,7 @@
       document.getElementById('save-html').checked = currentConfig.saveHtml;
       document.getElementById('save-binary').checked = currentConfig.saveBinary;
       document.getElementById('auto-start').checked = currentConfig.autoStart;
-      document.getElementById('hotkey-display').textContent = currentConfig.hotkey;
+      document.getElementById('hotkey-display').textContent = shortenHotkey(currentConfig.hotkey);
     }
 
     async function saveSettings() {
@@ -272,11 +351,21 @@
       display.textContent = msg;
       display.style.color = '#ff0000';
       setTimeout(() => {
-        display.textContent = currentConfig.hotkey;
+        display.textContent = shortenHotkey(currentConfig.hotkey);
         display.style.color = '#00ff00';
         display.classList.remove('recording');
         isRecording = false;
+        cancelRecording();
       }, 2000);
+    }
+
+    function cancelRecording() {
+      const display = document.getElementById('hotkey-display');
+      const cancelBtn = document.getElementById('hotkey-cancel');
+      display.classList.remove('recording');
+      display.textContent = shortenHotkey(currentConfig.hotkey);
+      cancelBtn.classList.remove('visible');
+      isRecording = false;
     }
 
     function registerHotkey(key) {
@@ -323,7 +412,7 @@
       }
 
       currentConfig.hotkey = key;
-      document.getElementById('hotkey-display').textContent = key;
+      document.getElementById('hotkey-display').textContent = shortenHotkey(key);
       window.ctrlc.updateConfig({ hotkey: key }).catch(err => {
         showHotkeyWarning('Failed: ' + (err?.message || err));
       });
@@ -337,16 +426,36 @@
     document.getElementById('save-binary').addEventListener('change', saveSettings);
     document.getElementById('auto-start').addEventListener('change', saveSettings);
 
+    // Close button
+    document.getElementById('close-btn').addEventListener('click', () => {
+      window.close();
+    });
+
     const hotkeyDisplay = document.getElementById('hotkey-display');
+    const hotkeyCancel = document.getElementById('hotkey-cancel');
+
     hotkeyDisplay.addEventListener('click', () => {
       if (isRecording) return;
       isRecording = true;
       hotkeyDisplay.classList.add('recording');
       hotkeyDisplay.textContent = 'Press new hotkey...';
+      hotkeyCancel.classList.add('visible');
+      document.getElementById('hotkey-display').style.color = '#00ff00';
     });
 
+    // Cancel recording
+    hotkeyCancel.addEventListener('click', cancelRecording);
+
+    // Global keydown for recording
     document.addEventListener('keydown', (e) => {
       if (!isRecording) return;
+      
+      // Cancel on Escape
+      if (e.key === 'Escape') {
+        cancelRecording();
+        return;
+      }
+      
       e.preventDefault();
 
       // Build key string
@@ -370,13 +479,6 @@
       const key = parts.join('+') + '+' + keyName;
       registerHotkey(key);
     });
-
-    // Auto-save on close
-    const closeBtn = document.createElement('button');
-    closeBtn.style.cssText = 'position:fixed;bottom:10px;right:16px;background:rgba(0,255,0,0.1);border:1px solid rgba(0,255,0,0.2);color:#00ff00;padding:4px 12px;font-family:inherit;font-size:11px;cursor:pointer;border-radius:3px;';
-    closeBtn.textContent = 'Close';
-    closeBtn.addEventListener('click', () => window.close());
-    document.body.appendChild(closeBtn);
 
     loadSettings();
   </script>

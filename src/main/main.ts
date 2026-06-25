@@ -34,6 +34,15 @@ app.on('second-instance', () => {
   }
 });
 
+// Set app icon globally
+const appIconPath = path.join(__dirname, '../../assets/tray-icon.png');
+if (fs.existsSync(appIconPath)) {
+  app.dock?.setIcon(appIconPath);
+}
+
+// Remove default menu bar
+(app as any).setMenu(null);
+
 // Set app icon on the popup window
 function setAppIcon(win: BrowserWindow): void {
   const iconPath = path.join(__dirname, '../../assets/tray-icon.png');

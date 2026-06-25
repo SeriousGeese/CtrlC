@@ -106,7 +106,21 @@ function setupEventListeners(): void {
 
   // Keyboard navigation
   document.addEventListener('keydown', (e: KeyboardEvent) => {
+    // Don't handle if typing in search input
+    if (e.target === searchInput) {
+      handleHotkeys(e);
+      return;
+    }
     handleHotkeys(e);
+  });
+
+  // Also listen on window for focus issues
+  window.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      void window.ctrlc.closePopup();
+    }
   });
 
   // Hide on blur (window loses focus)

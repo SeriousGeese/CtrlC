@@ -1,5 +1,6 @@
 import { BrowserWindow, ipcMain } from 'electron';
 import * as path from 'node:path';
+import * as fs from 'node:fs';
 
 export class SettingsManager {
   private window: BrowserWindow | null = null;
@@ -28,6 +29,12 @@ export class SettingsManager {
         nodeIntegration: false,
       },
     });
+
+    // Set app icon
+    const iconPath = path.join(__dirname, '../../assets/tray-icon.png');
+    if (fs.existsSync(iconPath)) {
+      this.window.setIcon(iconPath);
+    }
 
     void this.window.loadFile(path.join(__dirname, '../../src/renderer/settings.html'));
 

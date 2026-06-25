@@ -15,7 +15,10 @@ export class PopupManager {
 
   showAt(x: number, y: number): void {
     this.position = { x, y };
+    // Move window to position first, then show and focus
+    this.window.setPosition(x, y, false);
     this.window.show();
+    this.window.focus();
   }
 
   showCurrentPosition(): void {
