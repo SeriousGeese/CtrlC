@@ -20,6 +20,28 @@ let settingsManager: SettingsManager | null = null;
 let aboutManager: AboutManager | null = null;
 let config = loadConfig();
 
+// Single-instance lock
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  app.quit();
+  process.exit(0);
+}
+app.on('second-instance', () => {
+  // Another instance started — focus our window
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+});
+
+// Set app icon on the popup window
+function setAppIcon(win: BrowserWindow): void {
+  const iconPath = path.join(__dirname, '../../assets/tray-icon.png');
+  if (fs.existsSync(iconPath)) {
+    win.setIcon(iconPath);
+  }
+}
+
 // Ensure data directory exists
 function ensureDataDir(): void {
   const dataDir = getDataDir();
@@ -53,6 +75,8 @@ function createPopupWindow(): BrowserWindow {
       win.setPosition(pos.x, pos.y, false);
     }
   });
+
+  setAppIcon(win);
 
   return win;
 }

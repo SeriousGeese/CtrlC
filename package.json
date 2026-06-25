@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "description": "Cross-platform clipboard manager with hotkey-triggered popup",
   "main": "dist/main/main.js",
+  "icon": "assets/tray-icon.png",
+  "build": {
+    "appId": "dev.seriousgeese.ctrlc",
+    "linux": {
+      "icon": "assets/tray-icon.png",
+      "category": "Utility",
+      "target": ["AppImage", "deb"]
+    }
+  },
   "author": "Serious Geese, LLC <https://seriousgeese.dev>",
   "license": "MIT",
   "scripts": {
