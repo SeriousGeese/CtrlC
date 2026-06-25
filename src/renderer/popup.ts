@@ -1,36 +1,29 @@
 // CtrlC Popup Renderer
 // Handles the hotkey-triggered clipboard history popup
 
-interface Clip {
-  id: string;
-  content: string;
-  type: string;
-  created_at: number;
-}
+import { ClipData } from '../shared/types';
 
-let clips: Clip[] = [];
+let clips: ClipData[] = [];
 let selectedIndex = -1;
-let filteredClips: Clip[] = [];
-let currentConfig: any = null;
+let filteredClips: ClipData[] = [];
 
 // DOM elements (always present after init)
 const searchInput = document.getElementById('search-input')! as HTMLInputElement;
 const clipList = document.getElementById('clip-list')!;
 const clipCount = document.getElementById('clip-count')!;
-const shortcutHint = document.getElementById('shortcut-hint')!;
 
 // Initialize on load
 async function init(): Promise<void> {
-  currentConfig = await window.ctrlc.getConfig();
-  loadClips();
-  setupEventListeners();
+  await window.ctrlc.getConfig();
+  void loadClips();
+  void setupEventListeners();
   searchInput.focus();
 }
 
 // Load and render clips
 async function loadClips(): Promise<void> {
   const rawClips = await window.ctrlc.getRecentClips();
-  clips = rawClips as Clip[];
+  clips = rawClips;
   filteredClips = clips;
   renderClips();
 }
@@ -85,12 +78,9 @@ function renderClips(): void {
     item.addEventListener('click', () => {
       const idx = parseInt(item.dataset.index || '0');
       const clip = filteredClips[idx];
-      if (clip) {
-        window.ctrlc.copyClip(clip.id).then(() => {
-          // Optional: show brief confirmation
-          window.ctrlc.closePopup();
-        });
-      }
+      void window.ctrlc.copyClip(clip.id).then(() => {
+        void window.ctrlc.closePopup();
+      });
     });
 
     clipList.appendChild(item);
@@ -120,7 +110,7 @@ function setupEventListeners(): void {
   });
 
   // Hide on blur (window loses focus)
-  const win = (window as any).electron?.remote?.getCurrentWindow?.();
+  void (window as { electron?: { remote?: { getCurrentWindow?: () => unknown } } }).electron?.remote?.getCurrentWindow?.();
 }
 
 // Handle keyboard shortcuts in the popup
@@ -128,7 +118,7 @@ function handleHotkeys(e: KeyboardEvent): void {
   // Escape — close without pasting
   if (e.key === 'Escape') {
     e.preventDefault();
-    window.ctrlc.closePopup();
+    void window.ctrlc.closePopup();
     return;
   }
 
@@ -138,8 +128,8 @@ function handleHotkeys(e: KeyboardEvent): void {
     const index = parseInt(e.key) - 1;
     if (index < filteredClips.length) {
       const clip = filteredClips[index];
-      window.ctrlc.copyClip(clip.id).then(() => {
-        window.ctrlc.closePopup();
+      void window.ctrlc.copyClip(clip.id).then(() => {
+        void window.ctrlc.closePopup();
       });
     }
     return;
@@ -153,8 +143,8 @@ function handleHotkeys(e: KeyboardEvent): void {
       const clip = filteredClips[idx];
       // Copy as plain text (strips HTML)
       const textOnly = stripHtml(clip.content);
-      navigator.clipboard.writeText(textOnly).then(() => {
-        window.ctrlc.closePopup();
+      void navigator.clipboard.writeText(textOnly).then(() => {
+        void window.ctrlc.closePopup();
       });
     }
     return;
@@ -166,8 +156,8 @@ function handleHotkeys(e: KeyboardEvent): void {
     const idx = selectedIndex >= 0 ? selectedIndex : 0;
     if (idx < filteredClips.length) {
       const clip = filteredClips[idx];
-      window.ctrlc.copyClip(clip.id).then(() => {
-        window.ctrlc.closePopup();
+      void window.ctrlc.copyClip(clip.id).then(() => {
+        void window.ctrlc.closePopup();
       });
     }
     return;
@@ -194,8 +184,8 @@ function handleHotkeys(e: KeyboardEvent): void {
     const idx = selectedIndex >= 0 ? selectedIndex : 0;
     if (idx < filteredClips.length) {
       const clip = filteredClips[idx];
-      window.ctrlc.copyClip(clip.id).then(() => {
-        window.ctrlc.closePopup();
+      void window.ctrlc.copyClip(clip.id).then(() => {
+        void window.ctrlc.closePopup();
       });
     }
   }

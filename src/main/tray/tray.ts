@@ -1,16 +1,16 @@
-import { app, Tray, Menu, ipcMain, BrowserWindow, shell, nativeTheme, nativeImage } from 'electron';
+import { Tray, Menu, BrowserWindow, nativeImage } from 'electron';
 import * as path from 'node:path';
 import { EventEmitter } from 'node:events';
 
 export class TrayManager extends EventEmitter {
   private tray: Tray | null = null;
 
-  constructor(mainWindow: BrowserWindow) {
+  constructor(_mainWindow: BrowserWindow) {
     super();
-    this.createTray(mainWindow);
+    this.createTray();
   }
 
-  private createTray(mainWindow: BrowserWindow): void {
+  private createTray(): void {
     const iconPath = path.join(__dirname, '../../assets/tray-icon.png');
 
     // Fallback icon if file doesn't exist yet
@@ -25,24 +25,12 @@ export class TrayManager extends EventEmitter {
     this.tray.setToolTip('CtrlC — Clipboard Manager');
 
     const contextMenu = Menu.buildFromTemplate([
-      {
-        label: 'Search Clips',
-        click: () => this.emit('show-popup', 0, 0),
-      },
+      { label: 'Search Clips', click: () => this.emit('show-popup', 0, 0) },
       { type: 'separator' },
-      {
-        label: 'Settings',
-        click: () => this.emit('settings'),
-      },
-      {
-        label: 'About CtrlC',
-        click: () => this.emit('about'),
-      },
+      { label: 'Settings', click: () => this.emit('settings') },
+      { label: 'About CtrlC', click: () => this.emit('about') },
       { type: 'separator' },
-      {
-        label: 'Exit',
-        click: () => this.emit('exit'),
-      },
+      { label: 'Exit', click: () => this.emit('exit') },
     ]);
 
     this.tray.setContextMenu(contextMenu);

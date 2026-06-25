@@ -1,7 +1,6 @@
-import { clipboard, BrowserWindow } from 'electron';
-import { v4 as uuidv4 } from 'uuid';
-import { ClipData, ClipType, DEFAULT_CONFIG, AppConfig } from '../shared/types';
-import { insertClip, getRecentClips, clipExistsByHash, cleanExpiredClips } from './db';
+import { clipboard } from 'electron';
+import { ClipType, AppConfig } from '../shared/types';
+import { insertClip, clipExistsByHash, cleanExpiredClips } from './db';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getClipsDir } from './config';
@@ -47,7 +46,7 @@ export class ClipboardCapture {
    * Manually trigger a clipboard capture (e.g., from tray menu "Copy Last").
    */
   captureCurrent(): void {
-    this.processClipboard();
+    void this.processClipboard();
   }
 
   /**
@@ -74,7 +73,7 @@ export class ClipboardCapture {
 
     const poll = () => {
       if (!this.isCapturing) return;
-      this.processClipboard();
+      void this.processClipboard();
       this.captureTimeout = setTimeout(poll, pollInterval);
     };
 
@@ -124,7 +123,7 @@ export class ClipboardCapture {
       if (exists) return;
 
       // Save to database
-      const clip = await insertClip(content, clipType, source);
+      await insertClip(content, clipType, source);
 
     } catch (err) {
       console.error('[ClipboardCapture] Error capturing clipboard:', err);

@@ -1,9 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import { AppConfig, ClipData } from '../shared/types';
 
 contextBridge.exposeInMainWorld('ctrlc', {
   // Config
   getConfig: () => ipcRenderer.invoke('config:get'),
-  updateConfig: (updates: Record<string, unknown>) =>
+  updateConfig: (updates: Partial<AppConfig>) =>
     ipcRenderer.invoke('config:update', updates),
 
   // Clips
@@ -24,9 +25,9 @@ contextBridge.exposeInMainWorld('ctrlc', {
 declare global {
   interface Window {
     ctrlc: {
-      getConfig: () => Promise<any>;
-      updateConfig: (updates: Record<string, unknown>) => Promise<any>;
-      getRecentClips: () => Promise<any[]>;
+      getConfig: () => Promise<AppConfig>;
+      updateConfig: (updates: Partial<AppConfig>) => Promise<AppConfig>;
+      getRecentClips: () => Promise<ClipData[]>;
       deleteClip: (id: string) => Promise<boolean>;
       copyClip: (id: string) => Promise<boolean>;
       showPopup: (x: number, y: number) => Promise<void>;

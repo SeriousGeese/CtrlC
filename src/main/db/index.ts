@@ -3,7 +3,6 @@ import { open, Database } from 'sqlite';
 import { ClipData } from '../../shared/types';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'node:crypto';
-import * as path from 'node:path';
 
 let db: Database | null = null;
 let dbPath: string = '';
@@ -37,11 +36,6 @@ export async function initDB(): Promise<void> {
   `);
 }
 
-function getDb(): Database {
-  if (!db) throw new Error('Database not initialized');
-  return db;
-}
-
 export async function insertClip(content: string, type: string, source?: string): Promise<ClipData> {
   const id = uuidv4();
   const hash = hashContent(content);
@@ -73,7 +67,7 @@ export function cleanExpiredClips(days: number): Promise<void> {
 
 export function getClipCount(): Promise<number> {
   return db!.get('SELECT COUNT(*) as count FROM clips')
-    .then((row: any) => row.count);
+    .then((row: { count: number }) => row.count);
 }
 
 export async function closeDB(): Promise<void> {
@@ -85,5 +79,5 @@ export async function closeDB(): Promise<void> {
 
 export function clipExistsByHash(hash: string): Promise<boolean> {
   return db!.get('SELECT 1 FROM clips WHERE content_hash = ? LIMIT 1', hash)
-    .then((row: any) => row !== undefined);
+    .then((row: { '1': number | undefined }) => row['1'] !== undefined);
 }

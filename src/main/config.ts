@@ -25,10 +25,19 @@ function resolveConfigPath(): string {
   return path.join(resolveDataDir(), CONFIG_FILENAME);
 }
 
-function parseToml(content: string): Record<string, unknown> {
+function parseToml(content: string): ParsedConfig {
   // Simple TOML parser — handles the flat key-value pairs we need.
   // If we need nested tables later, we'll add a full parser.
-  const result: Record<string, unknown> = {};
+  const result: ParsedConfig = {
+    hotkey: undefined,
+    historyDepth: undefined,
+    retentionDays: undefined,
+    saveImages: undefined,
+    saveHtml: undefined,
+    saveBinary: undefined,
+    autoStart: undefined,
+    dataDir: undefined,
+  };
   const lines = content.split('\n');
 
   for (const line of lines) {
@@ -53,10 +62,22 @@ function parseToml(content: string): Record<string, unknown> {
     else if (rawValue === 'false') value = false;
     else if (!isNaN(Number(rawValue)) && rawValue !== '') value = Number(rawValue);
 
-    result[key] = value;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (result as any)[key] = value;
   }
 
   return result;
+}
+
+interface ParsedConfig {
+  hotkey?: string;
+  historyDepth?: number;
+  retentionDays?: number;
+  saveImages?: boolean;
+  saveHtml?: boolean;
+  saveBinary?: boolean;
+  autoStart?: boolean;
+  dataDir?: string;
 }
 
 function serializeToml(config: Partial<AppConfig>): string {
@@ -109,14 +130,14 @@ export function loadConfig(): AppConfig {
     const parsed = parseToml(content);
 
     fileConfig = {};
-    if (parsed.hotkey !== undefined) (fileConfig as any).hotkey = parsed.hotkey as string;
-    if (parsed.historyDepth !== undefined) (fileConfig as any).historyDepth = parsed.historyDepth as number;
-    if (parsed.retentionDays !== undefined) (fileConfig as any).retentionDays = parsed.retentionDays as number;
-    if (parsed.saveImages !== undefined) (fileConfig as any).saveImages = parsed.saveImages as boolean;
-    if (parsed.saveHtml !== undefined) (fileConfig as any).saveHtml = parsed.saveHtml as boolean;
-    if (parsed.saveBinary !== undefined) (fileConfig as any).saveBinary = parsed.saveBinary as boolean;
-    if (parsed.autoStart !== undefined) (fileConfig as any).autoStart = parsed.autoStart as boolean;
-    if (parsed.dataDir !== undefined) (fileConfig as any).dataDir = parsed.dataDir as string;
+    if (parsed.hotkey !== undefined) { fileConfig.hotkey = parsed.hotkey; }
+    if (parsed.historyDepth !== undefined) { fileConfig.historyDepth = parsed.historyDepth; }
+    if (parsed.retentionDays !== undefined) { fileConfig.retentionDays = parsed.retentionDays; }
+    if (parsed.saveImages !== undefined) { fileConfig.saveImages = parsed.saveImages; }
+    if (parsed.saveHtml !== undefined) { fileConfig.saveHtml = parsed.saveHtml; }
+    if (parsed.saveBinary !== undefined) { fileConfig.saveBinary = parsed.saveBinary; }
+    if (parsed.autoStart !== undefined) { fileConfig.autoStart = parsed.autoStart; }
+    if (parsed.dataDir !== undefined) { fileConfig.dataDir = parsed.dataDir; }
   }
 
   return {

@@ -1,13 +1,13 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, globalShortcut, clipboard, Notification, nativeImage } from 'electron';
+import { app, BrowserWindow, ipcMain, clipboard } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { loadConfig, saveConfig, getDataDir, getClipsDir } from './config';
-import { initDB, insertClip, getRecentClips, deleteClip, cleanExpiredClips, setDbPath } from './db';
+import { initDB, getRecentClips, deleteClip, cleanExpiredClips, setDbPath } from './db';
 import { TrayManager } from './tray/tray';
 import { HotkeyManager } from './hotkey/hotkey';
 import { PopupManager } from './popup/popup';
 import { ClipboardCapture } from './clipboard';
-import { DEFAULT_CONFIG, ClipData } from '../shared/types';
+import { ClipData, AppConfig } from '../shared/types';
 
 let mainWindow: BrowserWindow | null = null;
 let trayManager: TrayManager | null = null;
@@ -44,9 +44,8 @@ function createPopupWindow(): BrowserWindow {
     },
   });
 
-  win.loadFile(path.join(__dirname, '../../renderer/popup.html'));
-
   // Position at current mouse location (set from renderer via IPC)
+  void win.loadFile(path.join(__dirname, '../../renderer/popup.html'));
   win.once('show', () => {
     const pos = popupManager?.getPosition();
     if (pos) {
@@ -61,18 +60,18 @@ function createPopupWindow(): BrowserWindow {
 function setupIPC(): void {
   // Config
   ipcMain.handle('config:get', () => config);
-  ipcMain.handle('config:update', (_event, updates: Partial<typeof config>) => {
+  ipcMain.handle('config:update', (_event, updates: Partial<AppConfig>) => {
     config = { ...config, ...updates };
-    saveConfig(updates);
+    void saveConfig(updates);
 
     // Restart hotkey if changed
     if (updates.hotkey && updates.hotkey !== config.hotkey) {
-      hotkeyManager?.removeHotkey();
-      hotkeyManager?.registerHotkey(updates.hotkey);
+      void hotkeyManager?.removeHotkey();
+      void hotkeyManager?.registerHotkey(updates.hotkey);
     }
 
-    // Clean expired clips
-    cleanExpiredClips(config.retentionDays);
+    // Clean expired clips (fire and forget for background cleanup)
+    void cleanExpiredClips(config.retentionDays);
 
     return config;
   });
@@ -129,14 +128,16 @@ function setupIPC(): void {
   // Navigation (for about/settings windows)
   ipcMain.handle('nav:about', () => {
     // TODO: Open about window
+    return true;
   });
   ipcMain.handle('nav:settings', () => {
     // TODO: Open settings window
+    return true;
   });
 }
 
 // App lifecycle
-app.whenReady().then(async () => {
+void app.whenReady().then(async () => {
   ensureDataDir();
 
   // Set DB path
@@ -147,8 +148,8 @@ app.whenReady().then(async () => {
   await initDB();
   setupIPC();
 
-  // Clean expired clips on startup
-  cleanExpiredClips(config.retentionDays);
+  // Clean expired clips on startup (fire and forget)
+  void cleanExpiredClips(config.retentionDays);
 
   // Create popup window (hidden initially)
   mainWindow = createPopupWindow();
@@ -171,16 +172,18 @@ app.whenReady().then(async () => {
   trayManager.on('show-popup', (x: number, y: number) => {
     popupManager?.showAt(x, y);
   });
-  trayManager.on('copy-last', async () => {
-    const recent = await getRecentClips(1);
-    if (recent.length > 0) {
-      const clip = recent[0];
-      if (clip.type === 'image') {
-        clipboard.writeBuffer('public.jpeg', Buffer.from(clip.content, 'base64'));
-      } else {
-        clipboard.writeText(clip.content);
+  trayManager.on('copy-last', () => {
+    void (async () => {
+      const recent = await getRecentClips(1);
+      if (recent.length > 0) {
+        const clip = recent[0];
+        if (clip.type === 'image') {
+          clipboard.writeBuffer('public.png', Buffer.from(clip.content, 'utf-8'));
+        } else {
+          clipboard.writeText(clip.content);
+        }
       }
-    }
+    })();
   });
   trayManager.on('settings', () => {
     // Open settings window

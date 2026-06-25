@@ -1,11 +1,12 @@
 import { globalShortcut, screen } from 'electron';
 import { EventEmitter } from 'node:events';
+import { BrowserWindow } from 'electron';
 
 export class HotkeyManager extends EventEmitter {
   private hotkey: string;
-  private mainWindowRef: any;
+  private mainWindowRef: BrowserWindow;
 
-  constructor(mainWindow: any, hotkey: string) {
+  constructor(mainWindow: BrowserWindow, hotkey: string) {
     super();
     this.mainWindowRef = mainWindow;
     this.hotkey = hotkey;
