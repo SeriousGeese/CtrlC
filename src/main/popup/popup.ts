@@ -11,6 +11,19 @@ export class PopupManager {
     ipcMain.on('popup:motion', (_event, x: number, y: number) => {
       this.position = { x, y };
     });
+
+    // Close popup when it loses focus (click outside)
+    this.window.on('blur', () => {
+      if (this.window.isVisible()) {
+        this.window.hide();
+      }
+    });
+
+    // Also hide when the user presses the window close button or Alt+F4
+    this.window.on('close', (e) => {
+      e.preventDefault();
+      this.window.hide();
+    });
   }
 
   showAt(x: number, y: number): void {
@@ -19,10 +32,15 @@ export class PopupManager {
     this.window.setPosition(x, y, false);
     this.window.show();
     this.window.focus();
+    // Force focus on Wayland where .focus() may not work
+    this.window.setAlwaysOnTop(true);
+    this.window.moveTop();
   }
 
   showCurrentPosition(): void {
     this.window.show();
+    this.window.focus();
+    this.window.moveTop();
   }
 
   close(): void {

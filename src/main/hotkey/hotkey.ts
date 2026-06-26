@@ -19,8 +19,8 @@ export class HotkeyManager extends EventEmitter {
     if (process.platform === 'linux') {
       normalizedHotkey = hotkey
         .replace('CommandOrControl', 'Ctrl')
-        .replace('Command', 'Super')
-        .replace('Backquote', '`');
+        .replace('Command', 'Super');
+      // Keep Backquote as-is — Electron's accelerator format uses Backquote, not ``
     }
 
     globalShortcut.register(normalizedHotkey, () => {

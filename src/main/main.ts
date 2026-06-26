@@ -173,6 +173,10 @@ void app.whenReady().then(async () => {
   // Create popup window (hidden initially)
   mainWindow = createPopupWindow();
 
+  // Clipboard capture
+  clipboardCapture = new ClipboardCapture(config);
+  clipboardCapture.start();
+
   // Settings + About
   settingsManager = new SettingsManager();
   aboutManager = new AboutManager();

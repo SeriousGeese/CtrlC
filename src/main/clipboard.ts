@@ -91,22 +91,38 @@ export class ClipboardCapture {
       let content = '';
       let source = '';
 
+      // On Wayland, format names may vary (e.g. 'text/plain;charset=utf-8')
+      // so we try reading each format and fall back to readText()
+      const hasHtml = types.some(t => t.startsWith('text/html'));
+      const hasImage = types.some(t => t.startsWith('image/'));
+      const hasText = types.some(t => t.startsWith('text/plain') || t.startsWith('UTF8_STRING') || t.startsWith('STRING'));
+
       // Priority order: html > image > text
-      if (types.includes('text/html') && this.config.saveHtml) {
+      if (hasHtml && this.config.saveHtml) {
         content = clipboard.readHTML();
-        clipType = 'html';
-        source = 'html';
-      } else if (types.includes('image/png') && this.config.saveImages) {
+        if (content && content.length > 0) {
+          clipType = 'html';
+          source = 'html';
+        }
+      }
+
+      if (!content && hasImage && this.config.saveImages) {
         const imageBuffer = clipboard.readImage()?.toPNG();
-        if (imageBuffer) {
+        if (imageBuffer && imageBuffer.length > 0) {
           content = this.saveImageToDisk(imageBuffer);
           clipType = 'image';
           source = 'image';
         }
-      } else if (types.includes('text/plain')) {
+      }
+
+      if (!content) {
+        // Always try readText() — works reliably even when text/plain
+        // isn't listed in availableFormats() on some platforms
         content = clipboard.readText();
-        clipType = 'text';
-        source = 'text';
+        if (content && content.length > 0) {
+          clipType = 'text';
+          source = 'text';
+        }
       }
 
       if (!content || content.length === 0) return;
