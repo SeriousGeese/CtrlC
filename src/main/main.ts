@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, clipboard } from 'electron';
+import { app, BrowserWindow, ipcMain, clipboard, Menu } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { loadConfig, saveConfig, getDataDir } from './config';
@@ -41,7 +41,7 @@ if (fs.existsSync(appIconPath)) {
 }
 
 // Remove default menu bar
-(app as any).setMenu(null);
+Menu.setApplicationMenu(null);
 
 // Set app icon on the popup window
 function setAppIcon(win: BrowserWindow): void {

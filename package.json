@@ -9,7 +9,10 @@
     "linux": {
       "icon": "assets/tray-icon.png",
       "category": "Utility",
-      "target": ["AppImage", "deb"]
+      "target": [
+        "AppImage",
+        "deb"
+      ]
     }
   },
   "author": "Serious Geese, LLC <https://seriousgeese.dev>",
@@ -33,7 +36,6 @@
     "uuid": "^14.0.1"
   },
   "devDependencies": {
-    "@types/electron": "^1.4.38",
     "@types/node": "^26.0.1",
     "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.62.0",
