@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 
-import { setDbPath, initDB, closeDB, insertClip, getRecentClips, deleteClip, cleanExpiredClips, clipExistsByHash } from './index';
+import { setDbPath, initDB, closeDB, insertClip, getRecentClips, deleteClip, cleanExpiredClips, clearAllClips, clipExistsByHash } from './index';
 
 describe('DB module', () => {
   const tmpDir = path.join(os.tmpdir(), `ctrlc-db-test-${Date.now()}`);
@@ -20,6 +20,23 @@ describe('DB module', () => {
     if (fs.existsSync(tmpDir)) {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
+  });
+
+  describe('clearAllClips', () => {
+    it('removes every clip', async () => {
+      await insertClip('one', 'text');
+      await insertClip('two', 'text');
+      await insertClip('three', 'html');
+      expect((await getRecentClips(10)).length).toBe(3);
+
+      await clearAllClips();
+      expect((await getRecentClips(10)).length).toBe(0);
+    });
+
+    it('is a no-op on an empty table', async () => {
+      await expect(clearAllClips()).resolves.toBeUndefined();
+      expect((await getRecentClips(10)).length).toBe(0);
+    });
   });
 
   describe('insertClip and getRecentClips', () => {

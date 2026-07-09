@@ -198,6 +198,28 @@
       color: #00ff00;
     }
 
+    .danger-btn {
+      background: rgba(255, 60, 60, 0.08);
+      border: 1px solid rgba(255, 60, 60, 0.35);
+      border-radius: 3px;
+      color: #ff5c5c;
+      font-family: inherit;
+      font-size: 12px;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .danger-btn:hover:not(:disabled) {
+      background: rgba(255, 60, 60, 0.18);
+      border-color: rgba(255, 60, 60, 0.7);
+    }
+
+    .danger-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
     .footer {
       padding: 10px 16px;
       border-top: 1px solid rgba(0, 255, 0, 0.1);
@@ -271,6 +293,14 @@
         </label>
       </div>
     </div>
+
+    <div class="setting-group">
+      <h2>History</h2>
+      <div class="setting-row">
+        <label>Delete all saved clips</label>
+        <button class="danger-btn" id="clear-history">Clear History…</button>
+      </div>
+    </div>
   </div>
 
   <div class="footer">CtrlC — Cross-platform clipboard manager</div>
@@ -279,9 +309,9 @@
     let currentConfig = null;
     let isRecording = false;
 
-    // Get display platform shortcut
+    // Get display platform shortcut (no `process` in the sandboxed renderer)
     function getModifierLabel() {
-      return process.platform === 'darwin' ? 'Cmd' : 'Ctrl';
+      return navigator.platform.toUpperCase().includes('MAC') ? 'Cmd' : 'Ctrl';
     }
 
     // Shorten hotkey display for readability
@@ -425,6 +455,21 @@
 
     // Cancel recording
     hotkeyCancel.addEventListener('click', cancelRecording);
+
+    // Clear history — main process shows a native confirm/cancel dialog
+    const clearBtn = document.getElementById('clear-history');
+    clearBtn.addEventListener('click', async () => {
+      clearBtn.disabled = true;
+      try {
+        const cleared = await window.ctrlc.clearHistory();
+        if (cleared) {
+          clearBtn.textContent = 'History cleared';
+          setTimeout(() => { clearBtn.textContent = 'Clear History…'; }, 2000);
+        }
+      } finally {
+        clearBtn.disabled = false;
+      }
+    });
 
     // Global keydown for recording
     document.addEventListener('keydown', (e) => {

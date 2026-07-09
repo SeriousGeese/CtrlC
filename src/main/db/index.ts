@@ -84,6 +84,10 @@ export async function closeDB(): Promise<void> {
   }
 }
 
+export function clearAllClips(): Promise<void> {
+  return db!.run('DELETE FROM clips').then(() => {});
+}
+
 export function cleanExpiredClips(days: number): Promise<void> {
   const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
   return db!.run('DELETE FROM clips WHERE created_at < ?', cutoff).then(() => {});

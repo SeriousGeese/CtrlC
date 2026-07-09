@@ -1,8 +1,8 @@
-import { app, BrowserWindow, ipcMain, clipboard, Menu, nativeImage } from 'electron';
+import { app, BrowserWindow, ipcMain, clipboard, Menu, nativeImage, dialog } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-import { loadConfig, saveConfig, getDataDir } from './config';
-import { initDB, getRecentClips, deleteClip, cleanExpiredClips, setDbPath, closeDB } from './db';
+import { loadConfig, saveConfig, getDataDir, getClipsDir } from './config';
+import { initDB, getRecentClips, deleteClip, cleanExpiredClips, clearAllClips, setDbPath, closeDB } from './db';
 import { TrayManager } from './tray/tray';
 import { HotkeyManager } from './hotkey/hotkey';
 import { PopupManager } from './popup/popup';
@@ -160,7 +160,51 @@ function setupIPC(): void {
   });
 
   // Clips
-  ipcMain.handle('clips:get-recent', () => getRecentClips(config.historyDepth));
+  ipcMain.handle('clips:get-recent', async () => {
+    const clips = await getRecentClips(config.historyDepth);
+    // Image clips store the PNG's file path; the sandboxed renderer can't
+    // read files, so attach the image data as a base64 preview.
+    for (const clip of clips) {
+      if (clip.type === 'image') {
+        try {
+          clip.preview = fs.readFileSync(clip.content).toString('base64');
+        } catch {
+          // file was cleaned up — renderer shows the [image] placeholder
+        }
+      }
+    }
+    return clips;
+  });
+  ipcMain.handle('clips:clear', async (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    const opts: Electron.MessageBoxOptions = {
+      type: 'warning',
+      buttons: ['Clear History', 'Cancel'],
+      defaultId: 1,
+      cancelId: 1,
+      title: 'Clear History',
+      message: 'Clear all clipboard history?',
+      detail: 'This permanently deletes every saved clip, including images.',
+    };
+    const { response } = win
+      ? await dialog.showMessageBox(win, opts)
+      : await dialog.showMessageBox(opts);
+    if (response !== 0) return false;
+
+    await clearAllClips();
+    // Remove saved image files
+    const clipsDir = getClipsDir();
+    if (fs.existsSync(clipsDir)) {
+      for (const file of fs.readdirSync(clipsDir)) {
+        try {
+          fs.unlinkSync(path.join(clipsDir, file));
+        } catch {
+          // best-effort cleanup
+        }
+      }
+    }
+    return true;
+  });
   ipcMain.handle('clips:delete', async (_event, id: string) => {
     await deleteClip(id);
     return true;

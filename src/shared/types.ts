@@ -7,6 +7,7 @@ export interface ClipData {
   content: string;
   contentHash: string;
   source?: string; // app that copied it
+  preview?: string; // base64 PNG attached for image clips (content is the file path)
 }
 
 export type ClipType = 'text' | 'html' | 'image' | 'file' | 'binary';

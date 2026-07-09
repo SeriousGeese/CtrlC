@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('ctrlc', {
   deleteClip: (id: string) => ipcRenderer.invoke('clips:delete', id),
   copyClip: (id: string) => ipcRenderer.invoke('clips:copy', id),
   capture: () => ipcRenderer.invoke('clips:capture'),
+  clearHistory: () => ipcRenderer.invoke('clips:clear'),
 
   // Popup
   showPopup: (x: number, y: number) =>
@@ -32,6 +33,7 @@ declare global {
       deleteClip: (id: string) => Promise<boolean>;
       copyClip: (id: string) => Promise<boolean>;
       capture: () => Promise<boolean>;
+      clearHistory: () => Promise<boolean>;
       showPopup: (x: number, y: number) => Promise<void>;
       closePopup: () => Promise<void>;
       openSettings: () => Promise<void>;

@@ -14,6 +14,7 @@ interface ClipData {
   content: string;
   contentHash: string;
   source?: string;
+  preview?: string; // base64 PNG for image clips (content is the file path)
 }
 
 let clips: ClipData[] = [];
@@ -68,7 +69,10 @@ function renderClips(): void {
 
     if (clip.type === 'image') {
       const img = document.createElement('img');
-      img.src = `data:image/png;base64,${clip.content}`;
+      // content holds the PNG's file path; main attaches base64 as preview
+      if (clip.preview) {
+        img.src = `data:image/png;base64,${clip.preview}`;
+      }
       img.alt = '[image]';
       preview.appendChild(img);
     } else {
@@ -103,6 +107,18 @@ function renderClips(): void {
 }
 
 function setupEventListeners(): void {
+  // The popup window is created once at startup and then hidden/shown, so
+  // reload the clip list every time it becomes visible — otherwise the user
+  // only ever sees the clips that existed when the app started.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      searchInput.value = '';
+      selectedIndex = -1;
+      void loadClips();
+      searchInput.focus();
+    }
+  });
+
   // Search filtering
   searchInput.addEventListener('input', () => {
     const query = searchInput.value.toLowerCase().trim();
