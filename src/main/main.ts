@@ -13,6 +13,7 @@ import { registerGlobalShortcut } from './desktop-shortcut';
 import { ClipData, AppConfig } from '../shared/types';
 import { computePopupPosition, POPUP_WIDTH, POPUP_HEIGHT } from './popup/position';
 import { synthesizePaste } from './paste';
+import { ensureKWinHelper, restorePreviousFocus, placePopupAtCursor, placePopupCenterCursorScreen } from './kwin/helper';
 
 // Set process name for task managers / ps
 process.title = 'CtrlC';
@@ -222,8 +223,11 @@ function setupIPC(): void {
     const clip = clips.find((c: ClipData) => c.id === id);
     if (!clip) return false;
     await copyClipToSystem(clip);
-    // Hide first so focus returns to the target window, then inject Ctrl+V.
+    // Hide, explicitly re-activate the pre-popup window (KWin's implicit
+    // focus restore is unreliable and lands in the wrong app), then inject
+    // Ctrl+V once the target has focus.
     popupManager?.close();
+    await restorePreviousFocus();
     setTimeout(() => {
       void synthesizePaste();
     }, 250);
@@ -279,9 +283,26 @@ void app.whenReady().then(async () => {
   // Popup manager
   popupManager = new PopupManager(mainWindow);
 
+  // KWin helper: true-cursor popup placement and focus restore on Wayland
+  void ensureKWinHelper(getDataDir());
+
+  // Show the popup, then (for pointer-anchored modes on KDE Wayland) ask
+  // KWin to move it to the real cursor — Electron's cursor position is stale
+  // under XWayland whenever the mouse is over a native Wayland window.
+  const showPopup = (x: number, y: number): void => {
+    popupManager?.showAt(x, y);
+    if (config.popupPosition === 'mouse' || config.popupPosition === 'caret') {
+      void placePopupAtCursor();
+    } else if (config.popupPosition === 'center-current') {
+      void placePopupCenterCursorScreen();
+    }
+    // center-primary needs no correction: the primary display is static and
+    // Electron positions it exactly.
+  };
+
   // Wire up hotkey → popup
   hotkeyManager.on('hotkey-pressed', (x: number, y: number) => {
-    popupManager?.showAt(x, y);
+    showPopup(x, y);
   });
 
   // If Electron's native global shortcut failed to register (always the case
@@ -314,7 +335,7 @@ void app.whenReady().then(async () => {
   // Wire up tray actions (tray emits placeholder coords; compute real ones)
   trayManager.on('show-popup', () => {
     const { x, y } = computePopupPosition(config.popupPosition);
-    popupManager?.showAt(x, y);
+    showPopup(x, y);
   });
   trayManager.on('copy-last', async () => {
     const recent = await getRecentClips(1);

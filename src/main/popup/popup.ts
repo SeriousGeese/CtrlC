@@ -31,6 +31,9 @@ export class PopupManager {
     // Move window to position first, then show and focus
     this.window.setPosition(x, y, false);
     this.window.show();
+    // Re-assert after mapping — the window manager's placement policy can
+    // override the pre-show position on a fresh map.
+    this.window.setPosition(x, y, false);
     this.window.focus();
     // Force focus on Wayland where .focus() may not work
     this.window.setAlwaysOnTop(true);
