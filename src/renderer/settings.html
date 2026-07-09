@@ -198,6 +198,27 @@
       color: #00ff00;
     }
 
+    .setting-row select {
+      width: 220px;
+      background: rgba(0, 255, 0, 0.05);
+      border: 1px solid rgba(0, 255, 0, 0.2);
+      border-radius: 3px;
+      color: #00ff00;
+      padding: 5px 8px;
+      font-family: inherit;
+      font-size: 12px;
+      outline: none;
+    }
+
+    .setting-row select:focus {
+      border-color: rgba(0, 255, 0, 0.5);
+    }
+
+    .setting-row select option {
+      background: #0a0a0a;
+      color: #00ff00;
+    }
+
     .danger-btn {
       background: rgba(255, 60, 60, 0.08);
       border: 1px solid rgba(255, 60, 60, 0.35);
@@ -244,6 +265,22 @@
       <div class="setting-row">
         <label>Retention (days)</label>
         <input type="number" id="retention-days" min="1" max="365">
+      </div>
+      <div class="setting-row" style="justify-content: flex-end;">
+        <button class="danger-btn" id="clear-history">Clear History…</button>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <h2>Popup</h2>
+      <div class="setting-row">
+        <label>Pop-up position</label>
+        <select id="popup-position">
+          <option value="caret">Cursor</option>
+          <option value="mouse">Mouse</option>
+          <option value="center-primary">Center of Primary Screen</option>
+          <option value="center-current">Center of Current Screen</option>
+        </select>
       </div>
     </div>
 
@@ -293,14 +330,6 @@
         </label>
       </div>
     </div>
-
-    <div class="setting-group">
-      <h2>History</h2>
-      <div class="setting-row">
-        <label>Delete all saved clips</label>
-        <button class="danger-btn" id="clear-history">Clear History…</button>
-      </div>
-    </div>
   </div>
 
   <div class="footer">CtrlC — Cross-platform clipboard manager</div>
@@ -345,6 +374,7 @@
       document.getElementById('save-html').checked = currentConfig.saveHtml;
       document.getElementById('save-binary').checked = currentConfig.saveBinary;
       document.getElementById('auto-start').checked = currentConfig.autoStart;
+      document.getElementById('popup-position').value = currentConfig.popupPosition || 'mouse';
       document.getElementById('hotkey-display').textContent = shortenHotkey(currentConfig.hotkey);
     }
 
@@ -356,6 +386,7 @@
         saveHtml: document.getElementById('save-html').checked,
         saveBinary: document.getElementById('save-binary').checked,
         autoStart: document.getElementById('auto-start').checked,
+        popupPosition: document.getElementById('popup-position').value,
       };
       await window.ctrlc.updateConfig(updates);
     }
@@ -439,6 +470,7 @@
     document.getElementById('save-html').addEventListener('change', saveSettings);
     document.getElementById('save-binary').addEventListener('change', saveSettings);
     document.getElementById('auto-start').addEventListener('change', saveSettings);
+    document.getElementById('popup-position').addEventListener('change', saveSettings);
 
     // Hotkey display click to record
     const hotkeyDisplay = document.getElementById('hotkey-display');

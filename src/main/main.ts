@@ -11,6 +11,8 @@ import { SettingsManager, AboutManager } from './windows';
 import { enableAutoStart, disableAutoStart } from './auto-start';
 import { registerGlobalShortcut } from './desktop-shortcut';
 import { ClipData, AppConfig } from '../shared/types';
+import { computePopupPosition, POPUP_WIDTH, POPUP_HEIGHT } from './popup/position';
+import { synthesizePaste } from './paste';
 
 // Set process name for task managers / ps
 process.title = 'CtrlC';
@@ -84,8 +86,8 @@ function ensureDataDir(): void {
 // Create the popup window
 function createPopupWindow(): BrowserWindow {
   const win = new BrowserWindow({
-    width: 480,
-    height: 360,
+    width: POPUP_WIDTH,
+    height: POPUP_HEIGHT,
     show: false,
     frame: false,
     transparent: true,
@@ -215,6 +217,18 @@ function setupIPC(): void {
     if (clip) return copyClipToSystem(clip);
     return false;
   });
+  ipcMain.handle('clips:paste', async (_event, id: string) => {
+    const clips = await getRecentClips(config.historyDepth);
+    const clip = clips.find((c: ClipData) => c.id === id);
+    if (!clip) return false;
+    await copyClipToSystem(clip);
+    // Hide first so focus returns to the target window, then inject Ctrl+V.
+    popupManager?.close();
+    setTimeout(() => {
+      void synthesizePaste();
+    }, 250);
+    return true;
+  });
   ipcMain.handle('clips:capture', () => {
     clipboardCapture?.captureCurrent();
     return true;
@@ -259,8 +273,8 @@ void app.whenReady().then(async () => {
   // Tray
   trayManager = new TrayManager(mainWindow);
 
-  // Hotkey
-  hotkeyManager = new HotkeyManager(mainWindow, config.hotkey);
+  // Hotkey (reads the position mode live so settings changes apply instantly)
+  hotkeyManager = new HotkeyManager(mainWindow, config.hotkey, () => config.popupPosition);
 
   // Popup manager
   popupManager = new PopupManager(mainWindow);
@@ -297,8 +311,9 @@ void app.whenReady().then(async () => {
     });
   });
 
-  // Wire up tray actions
-  trayManager.on('show-popup', (x: number, y: number) => {
+  // Wire up tray actions (tray emits placeholder coords; compute real ones)
+  trayManager.on('show-popup', () => {
+    const { x, y } = computePopupPosition(config.popupPosition);
     popupManager?.showAt(x, y);
   });
   trayManager.on('copy-last', async () => {

@@ -1,0 +1,66 @@
+// Popup placement. All modes clamp to the target display's work area.
+//
+// Runs under XWayland on Linux (see the Electron pin note in main.ts), where
+// screen.getCursorScreenPoint() and window positioning both work.
+
+import { screen } from 'electron';
+import { PopupPositionMode } from '../../shared/types';
+
+export const POPUP_WIDTH = 440;
+export const POPUP_HEIGHT = 320;
+
+// Gap between the mouse pointer and the popup edge
+const POINTER_GAP = 12;
+
+interface Point {
+  x: number;
+  y: number;
+}
+
+export function computePopupPosition(mode: PopupPositionMode): Point {
+  try {
+    switch (mode) {
+      case 'center-primary':
+        return centerOf(screen.getPrimaryDisplay());
+      case 'center-current':
+        return centerOf(screen.getDisplayNearestPoint(screen.getCursorScreenPoint()));
+      case 'caret':
+        // Caret (text cursor) tracking has no portable Linux API; behave
+        // like 'mouse' until AT-SPI support lands (CtrlC-e9u follow-up).
+        return belowPointer();
+      case 'mouse':
+      default:
+        return belowPointer();
+    }
+  } catch {
+    // screen APIs can fail before app ready / on headless — fall back to
+    // primary-display center with fixed bounds.
+    return { x: 0, y: 0 };
+  }
+}
+
+function centerOf(display: Electron.Display): Point {
+  const area = display.workArea;
+  return {
+    x: Math.round(area.x + area.width / 2 - POPUP_WIDTH / 2),
+    y: Math.round(area.y + area.height / 2 - POPUP_HEIGHT / 2),
+  };
+}
+
+/** Just below the pointer; flips above it when too close to the bottom. */
+function belowPointer(): Point {
+  const cursor = screen.getCursorScreenPoint();
+  const area = screen.getDisplayNearestPoint(cursor).workArea;
+
+  const x = Math.round(
+    Math.min(Math.max(cursor.x, area.x), area.x + area.width - POPUP_WIDTH),
+  );
+
+  let y = cursor.y + POINTER_GAP;
+  if (y + POPUP_HEIGHT > area.y + area.height) {
+    y = cursor.y - POPUP_HEIGHT - POINTER_GAP;
+  }
+  y = Math.round(Math.max(y, area.y));
+
+  return { x, y };
+}

@@ -12,6 +12,17 @@ export interface ClipData {
 
 export type ClipType = 'text' | 'html' | 'image' | 'file' | 'binary';
 
+/**
+ * Where the popup appears when triggered.
+ * 'caret' — at the text cursor; no portable Linux API exists yet, so it
+ * currently behaves like 'mouse' (see CtrlC-e9u follow-up).
+ */
+export type PopupPositionMode = 'caret' | 'mouse' | 'center-primary' | 'center-current';
+
+export const POPUP_POSITION_MODES: PopupPositionMode[] = [
+  'caret', 'mouse', 'center-primary', 'center-current',
+];
+
 export interface AppConfig {
   hotkey: string;
   historyDepth: number;
@@ -21,6 +32,7 @@ export interface AppConfig {
   saveBinary: boolean;
   autoStart: boolean;
   dataDir: string;
+  popupPosition: PopupPositionMode;
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
@@ -32,6 +44,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   saveBinary: true,
   autoStart: false,
   dataDir: '', // resolved at runtime to ~/.CtrlC
+  popupPosition: 'mouse',
 };
 
 // Tray menu item definitions

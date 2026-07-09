@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { DEFAULT_CONFIG, AppConfig } from '../shared/types';
+import { DEFAULT_CONFIG, AppConfig, PopupPositionMode, POPUP_POSITION_MODES } from '../shared/types';
 
 const CONFIG_FILENAME = 'config.toml';
 const DATA_DIR_NAME = '.CtrlC';
@@ -37,6 +37,7 @@ function parseToml(content: string): ParsedConfig {
     saveBinary: undefined,
     autoStart: undefined,
     dataDir: undefined,
+    popupPosition: undefined,
   };
   const lines = content.split('\n');
 
@@ -78,6 +79,7 @@ interface ParsedConfig {
   saveBinary?: boolean;
   autoStart?: boolean;
   dataDir?: string;
+  popupPosition?: string;
 }
 
 function serializeToml(config: Partial<AppConfig>): string {
@@ -113,6 +115,9 @@ function serializeToml(config: Partial<AppConfig>): string {
   if (config.dataDir !== undefined) {
     pairs.push(`dataDir = "${config.dataDir}"`);
   }
+  if (config.popupPosition !== undefined) {
+    pairs.push(`popupPosition = "${config.popupPosition}"`);
+  }
 
   return [...lines, ...pairs].join('\n') + '\n';
 }
@@ -138,6 +143,10 @@ export function loadConfig(): AppConfig {
     if (parsed.saveBinary !== undefined) { fileConfig.saveBinary = parsed.saveBinary; }
     if (parsed.autoStart !== undefined) { fileConfig.autoStart = parsed.autoStart; }
     if (parsed.dataDir !== undefined) { fileConfig.dataDir = parsed.dataDir; }
+    if (parsed.popupPosition !== undefined &&
+        POPUP_POSITION_MODES.includes(parsed.popupPosition as PopupPositionMode)) {
+      fileConfig.popupPosition = parsed.popupPosition as PopupPositionMode;
+    }
   }
 
   return {

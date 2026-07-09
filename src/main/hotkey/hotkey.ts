@@ -1,15 +1,23 @@
-import { globalShortcut, screen } from 'electron';
+import { globalShortcut } from 'electron';
 import { EventEmitter } from 'node:events';
 import { BrowserWindow } from 'electron';
+import { PopupPositionMode } from '../../shared/types';
+import { computePopupPosition } from '../popup/position';
 
 export class HotkeyManager extends EventEmitter {
   private hotkey: string;
   private mainWindowRef: BrowserWindow;
+  private getPositionMode: () => PopupPositionMode;
 
-  constructor(mainWindow: BrowserWindow, hotkey: string) {
+  constructor(
+    mainWindow: BrowserWindow,
+    hotkey: string,
+    getPositionMode: () => PopupPositionMode = () => 'mouse',
+  ) {
     super();
     this.mainWindowRef = mainWindow;
     this.hotkey = hotkey;
+    this.getPositionMode = getPositionMode;
     this.registerHotkey(hotkey);
   }
 
@@ -46,7 +54,7 @@ export class HotkeyManager extends EventEmitter {
     }
 
     const ok = globalShortcut.register(normalizedHotkey, () => {
-      const { x, y } = this.popupPosition();
+      const { x, y } = computePopupPosition(this.getPositionMode());
       this.emit('hotkey-pressed', x, y);
     });
 
@@ -78,32 +86,8 @@ export class HotkeyManager extends EventEmitter {
 
   /** Trigger the popup programmatically (used by the --show-popup CLI hook). */
   triggerPopup(): void {
-    const { x, y } = this.popupPosition();
+    const { x, y } = computePopupPosition(this.getPositionMode());
     this.emit('hotkey-pressed', x, y);
-  }
-
-  /**
-   * Popup position: at the mouse cursor (Ditto-style), clamped so the window
-   * stays on the cursor's display. Falls back to display center if the cursor
-   * position is unavailable.
-   */
-  private popupPosition(): { x: number; y: number } {
-    const POPUP_W = 480;
-    const POPUP_H = 360;
-    try {
-      const cursor = screen.getCursorScreenPoint();
-      const display = screen.getDisplayNearestPoint(cursor);
-      const area = display.workArea;
-      const x = Math.min(Math.max(cursor.x, area.x), area.x + area.width - POPUP_W);
-      const y = Math.min(Math.max(cursor.y, area.y), area.y + area.height - POPUP_H);
-      return { x: Math.round(x), y: Math.round(y) };
-    } catch {
-      const display = screen.getPrimaryDisplay();
-      return {
-        x: Math.round(display.bounds.x + display.bounds.width / 2 - POPUP_W / 2),
-        y: Math.round(display.bounds.y + display.bounds.height / 2 - POPUP_H / 2),
-      };
-    }
   }
 
   removeHotkey(): void {

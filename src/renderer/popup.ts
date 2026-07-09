@@ -91,13 +91,11 @@ function renderClips(): void {
     badge.textContent = clip.type.toUpperCase();
     item.appendChild(badge);
 
-    // Click to copy
+    // Click to paste (main copies, hides the popup, and injects Ctrl+V)
     item.addEventListener('click', () => {
       const idx = parseInt(item.dataset.index || '0');
       const clip = filteredClips[idx];
-      void window.ctrlc.copyClip(clip.id).then(() => {
-        void window.ctrlc.closePopup();
-      });
+      void window.ctrlc.pasteClip(clip.id);
     });
 
     clipList.appendChild(item);
@@ -165,15 +163,13 @@ function handleHotkeys(e: KeyboardEvent): void {
     return;
   }
 
-  // Number keys 1-5 — copy first 5 clips
+  // Number keys 1-5 — paste one of the first 5 clips
   if (e.key >= '1' && e.key <= '5') {
     e.preventDefault();
     const index = parseInt(e.key) - 1;
     if (index < filteredClips.length) {
       const clip = filteredClips[index];
-      void window.ctrlc.copyClip(clip.id).then(() => {
-        void window.ctrlc.closePopup();
-      });
+      void window.ctrlc.pasteClip(clip.id);
     }
     return;
   }
@@ -221,15 +217,13 @@ function handleHotkeys(e: KeyboardEvent): void {
     return;
   }
 
-  // Enter — copy selected
+  // Enter — paste selected
   if (e.key === 'Enter') {
     e.preventDefault();
     const idx = selectedIndex >= 0 ? selectedIndex : 0;
     if (idx < filteredClips.length) {
       const clip = filteredClips[idx];
-      void window.ctrlc.copyClip(clip.id).then(() => {
-        void window.ctrlc.closePopup();
-      });
+      void window.ctrlc.pasteClip(clip.id);
     }
   }
 }
