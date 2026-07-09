@@ -33,18 +33,16 @@
   "dependencies": {
     "electron-store": "^8.1.0",
     "sqlite": "^5.1.1",
-    "sqlite3": "^6.0.1",
-    "uuid": "^14.0.1"
+    "sqlite3": "^6.0.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@types/node": "^26.0.1",
-    "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.62.0",
     "@typescript-eslint/parser": "^8.62.0",
     "@typescript-eslint/typescript-estree": "^8.62.0",
     "@vitest/browser": "^4.1.9",
-    "electron": "^42.5.0",
+    "electron": "^33.4.11",
     "electron-builder": "^25.0.0",
     "eslint": "^10.5.0",
     "jsdom": "^29.1.1",

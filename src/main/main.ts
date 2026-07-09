@@ -15,15 +15,15 @@ import { ClipData, AppConfig } from '../shared/types';
 // Set process name for task managers / ps
 process.title = 'CtrlC';
 
-// On Linux, force the X11 (XWayland) backend. Under native Wayland, a client
-// can only read or write the clipboard while one of its windows has focus, so
-// background clipboard polling captures nothing, window positioning is
-// ignored, and globalShortcut silently never fires. Under XWayland the
-// compositor (KWin/Mutter) syncs the Wayland clipboard to X11, so polling
-// from a hidden window works.
-if (process.platform === 'linux') {
-  app.commandLine.appendSwitch('ozone-platform', 'x11');
-}
+// NOTE: This project is pinned to Electron 33. Electron 42 displays no
+// windows at all on KDE Wayland (Bazzite) under either the native Wayland
+// backend (surfaces render internally but are never composited) or forced
+// ozone-platform=x11 (GPU-process crash loop, no X11 windows created). See
+// issue CtrlC-ec7. Under Electron 33 the app runs via XWayland, where window
+// positioning and cursor queries work. Wayland-session limitations are
+// handled outside Electron: clipboard capture uses `wl-paste --watch` (see
+// clipboard.ts) and global hotkeys are registered with the desktop
+// environment (see hotkey.ts / desktop-shortcut.ts).
 
 let mainWindow: BrowserWindow | null = null;
 let trayManager: TrayManager | null = null;
@@ -41,6 +41,7 @@ if (!gotLock) {
   process.exit(0);
 }
 app.on('second-instance', (_event, argv) => {
+  console.log('[CtrlC] second-instance:', argv.join(' '));
   // A compositor-level shortcut can run `ctrlc --show-popup`; that launches a
   // second instance, which we intercept here to open the popup. This is the
   // Wayland workaround for global hotkeys (the compositor owns shortcuts).

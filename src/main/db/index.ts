@@ -1,7 +1,6 @@
 import sqlite3 from 'sqlite3';
 import { open, Database } from 'sqlite';
 import { ClipData } from '../../shared/types';
-import { v4 as uuidv4 } from 'uuid';
 import crypto from 'node:crypto';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
@@ -45,7 +44,7 @@ export async function initDB(): Promise<void> {
 }
 
 export async function insertClip(content: string, type: string, source?: string): Promise<ClipData> {
-  const id = uuidv4();
+  const id = crypto.randomUUID();
   const hash = hashContent(content);
   const now = Date.now();
 
