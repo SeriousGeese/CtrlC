@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, clipboard, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, clipboard, Menu, nativeImage } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { loadConfig, saveConfig, getDataDir } from './config';
@@ -9,7 +9,21 @@ import { PopupManager } from './popup/popup';
 import { ClipboardCapture } from './clipboard';
 import { SettingsManager, AboutManager } from './windows';
 import { enableAutoStart, disableAutoStart } from './auto-start';
+import { registerGlobalShortcut } from './desktop-shortcut';
 import { ClipData, AppConfig } from '../shared/types';
+
+// Set process name for task managers / ps
+process.title = 'CtrlC';
+
+// On Linux, force the X11 (XWayland) backend. Under native Wayland, a client
+// can only read or write the clipboard while one of its windows has focus, so
+// background clipboard polling captures nothing, window positioning is
+// ignored, and globalShortcut silently never fires. Under XWayland the
+// compositor (KWin/Mutter) syncs the Wayland clipboard to X11, so polling
+// from a hidden window works.
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('ozone-platform', 'x11');
+}
 
 let mainWindow: BrowserWindow | null = null;
 let trayManager: TrayManager | null = null;
@@ -26,7 +40,14 @@ if (!gotLock) {
   app.quit();
   process.exit(0);
 }
-app.on('second-instance', () => {
+app.on('second-instance', (_event, argv) => {
+  // A compositor-level shortcut can run `ctrlc --show-popup`; that launches a
+  // second instance, which we intercept here to open the popup. This is the
+  // Wayland workaround for global hotkeys (the compositor owns shortcuts).
+  if (argv.includes('--show-popup')) {
+    hotkeyManager?.triggerPopup();
+    return;
+  }
   // Another instance started — focus our window
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
@@ -77,7 +98,7 @@ function createPopupWindow(): BrowserWindow {
     },
   });
 
-  void win.loadFile(path.join(__dirname, '../../src/renderer/popup.html'));
+  void win.loadFile(path.join(__dirname, '../renderer/popup.html'));
   win.once('show', () => {
     const pos = popupManager?.getPosition();
     if (pos) {
@@ -93,7 +114,10 @@ function createPopupWindow(): BrowserWindow {
 // Copy a clip to system clipboard
 async function copyClipToSystem(clip: ClipData): Promise<boolean> {
   if (clip.type === 'image') {
-    clipboard.writeBuffer('public.png', Buffer.from(clip.content, 'utf-8'));
+    // Image clips store the PNG's file path on disk, not the image bytes.
+    const img = nativeImage.createFromPath(clip.content);
+    if (img.isEmpty()) return false;
+    clipboard.writeImage(img);
   } else if (clip.type === 'html') {
     clipboard.write({ html: clip.content, text: clip.content });
   } else {
@@ -107,14 +131,20 @@ function setupIPC(): void {
   // Config
   ipcMain.handle('config:get', () => config);
   ipcMain.handle('config:update', async (_event, updates: Partial<AppConfig>) => {
+    const prevHotkey = config.hotkey;
     config = { ...config, ...updates };
-    await saveConfig(updates);
+    // Persist the full config — writing only the updates would drop every
+    // other setting from config.toml (serializeToml skips undefined keys).
+    await saveConfig(config);
 
     // Restart hotkey if changed
-    if (updates.hotkey && updates.hotkey !== config.hotkey) {
+    if (updates.hotkey && updates.hotkey !== prevHotkey) {
       hotkeyManager?.removeHotkey();
       hotkeyManager?.registerHotkey(updates.hotkey);
     }
+
+    // Keep the capture loop's view of the config current
+    clipboardCapture?.updateConfig(config);
 
     // Toggle auto-start
     if (updates.autoStart !== undefined) {
@@ -195,6 +225,33 @@ void app.whenReady().then(async () => {
     popupManager?.showAt(x, y);
   });
 
+  // If Electron's native global shortcut failed to register (always the case
+  // on Wayland — the compositor owns shortcuts), fall back to registering a
+  // DE-level shortcut that runs `<electron> <app> --show-popup`. The running
+  // instance intercepts that via the single-instance hook above.
+  hotkeyManager.on('hotkey-registered', (registered: boolean) => {
+    if (registered) return;
+    const iconPath = path.join(__dirname, '../../assets/tray-icon.png');
+    void registerGlobalShortcut({
+      execPath: process.execPath,
+      appPath: app.getAppPath(),
+      iconPath,
+      hotkey: config.hotkey,
+    }).then((result) => {
+      if (result.ok) {
+        console.log(`[CtrlC] ${result.message}`);
+        if (result.conflict) {
+          console.warn(
+            `[CtrlC] Hotkey conflict: "${result.conflict}" already uses this ` +
+              `shortcut. Change CtrlC's hotkey in Settings or unbind the other app.`,
+          );
+        }
+      } else {
+        console.warn(`[CtrlC] ${result.message}`);
+      }
+    });
+  });
+
   // Wire up tray actions
   trayManager.on('show-popup', (x: number, y: number) => {
     popupManager?.showAt(x, y);
@@ -212,7 +269,14 @@ void app.whenReady().then(async () => {
     aboutManager?.show();
   });
   trayManager.on('exit', () => {
-    app.quit();
+    // Manual cleanup before force-exit — app.quit() stalls because the
+    // popup window's close handler preventsDefault() (hides instead of
+    // closing). app.exit() skips will-quit events, so clean up here.
+    hotkeyManager?.destroy();
+    settingsManager?.destroy();
+    aboutManager?.destroy();
+    trayManager?.destroy();
+    void closeDB().finally(() => app.exit(0));
   });
 
   app.on('activate', () => {

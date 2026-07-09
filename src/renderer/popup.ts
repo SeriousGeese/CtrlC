@@ -1,7 +1,20 @@
 // CtrlC Popup Renderer
 // Handles the hotkey-triggered clipboard history popup
-
-import { ClipData } from '../shared/types';
+//
+// IMPORTANT: This file is loaded as a classic browser <script>, NOT a module.
+// It must NOT use top-level `import`/`export` — doing so makes tsc emit
+// CommonJS `Object.defineProperty(exports, ...)` boilerplate that references
+// `exports`, which is undefined in the browser and throws immediately,
+// silently killing ALL renderer logic (Esc, arrows, search, clip loading).
+// Keep ClipData mirrored from src/shared/types.ts (source of truth).
+interface ClipData {
+  id: string;
+  createdAt: number;
+  type: 'text' | 'html' | 'image' | 'file' | 'binary';
+  content: string;
+  contentHash: string;
+  source?: string;
+}
 
 let clips: ClipData[] = [];
 let selectedIndex = -1;

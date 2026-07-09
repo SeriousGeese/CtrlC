@@ -49,28 +49,28 @@ export async function insertClip(content: string, type: string, source?: string)
   const hash = hashContent(content);
   const now = Date.now();
 
-  const stmt = await db!.prepare(
-    'INSERT OR REPLACE INTO clips (id, content, content_hash, clip_type, source, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+  await db!.run(
+    'INSERT OR REPLACE INTO clips (id, content, content_hash, clip_type, source, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    id, content, hash, type, source || null, now
   );
-  await stmt.run(id, content, hash, type, source || null, now);
 
   return { id, createdAt: now, type: type as ClipData['type'], content, contentHash: hash, source };
 }
 
 export function getRecentClips(limit: number): Promise<ClipData[]> {
   return db!.all(
-    'SELECT * FROM clips ORDER BY created_at DESC LIMIT ?',
+    'SELECT id, content, content_hash AS contentHash, clip_type AS type, source, created_at AS createdAt FROM clips ORDER BY created_at DESC LIMIT ?',
     limit
   ) as Promise<ClipData[]>;
 }
 
 export function deleteClip(id: string): Promise<void> {
-  return db!.prepare('DELETE FROM clips WHERE id = ?').then(stmt => stmt.run(id)).then(() => {});
+  return db!.run('DELETE FROM clips WHERE id = ?', id).then(() => {});
 }
 
-export function cleanExpiredClips(days: number): Promise<void> {
-  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-  return db!.prepare('DELETE FROM clips WHERE created_at < ?').then(stmt => stmt.run(cutoff)).then(() => {});
+export function clipExistsByHash(hash: string): Promise<boolean> {
+  return db!.get('SELECT 1 FROM clips WHERE content_hash = ? LIMIT 1', hash)
+    .then((row: { '1': number | undefined } | undefined) => row !== undefined);
 }
 
 export function getClipCount(): Promise<number> {
@@ -85,7 +85,7 @@ export async function closeDB(): Promise<void> {
   }
 }
 
-export function clipExistsByHash(hash: string): Promise<boolean> {
-  return db!.get('SELECT 1 FROM clips WHERE content_hash = ? LIMIT 1', hash)
-    .then((row: { '1': number | undefined }) => row['1'] !== undefined);
+export function cleanExpiredClips(days: number): Promise<void> {
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return db!.run('DELETE FROM clips WHERE created_at < ?', cutoff).then(() => {});
 }

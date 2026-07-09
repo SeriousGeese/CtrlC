@@ -3,13 +3,20 @@ import { ClipType, AppConfig } from '../shared/types';
 import { insertClip, clipExistsByHash, cleanExpiredClips } from './db';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { spawn, spawnSync, execFile, ChildProcess } from 'node:child_process';
+import { promisify } from 'node:util';
 import { getClipsDir } from './config';
+
+const execFileAsync = promisify(execFile);
+const MAX_TEXT_BYTES = 16 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 64 * 1024 * 1024;
 
 export class ClipboardCapture {
   private config: AppConfig;
   private isCapturing = false;
   private lastClipHash = '';
   private captureTimeout: NodeJS.Timeout | null = null;
+  private waylandWatcher: ChildProcess | null = null;
 
   constructor(config: AppConfig) {
     this.config = config;
@@ -17,18 +24,21 @@ export class ClipboardCapture {
 
   /**
    * Start listening for clipboard changes.
-   * On Wayland, we use a polling approach since global clipboard events
-   * may not fire reliably.
+   *
+   * On a Wayland session, Electron (under either backend) can only read the
+   * clipboard while one of our windows has focus, so polling from a hidden
+   * window captures nothing. Instead we watch via `wl-paste --watch`, which
+   * uses the wlr-data-control protocol (made for clipboard managers — no
+   * focus needed, event-driven). Everywhere else we poll Electron's API.
    */
   start(): void {
     if (this.isCapturing) return;
     this.isCapturing = true;
 
-    // Start polling for clipboard changes
-    this.startPolling();
+    if (this.startWaylandWatcher()) return;
 
-    // Also try native clipboard change events (works on X11/Windows/macOS)
-    this.startNativeListener();
+    // X11 / Windows / macOS: poll for clipboard changes
+    this.startPolling();
   }
 
   /**
@@ -39,6 +49,10 @@ export class ClipboardCapture {
     if (this.captureTimeout) {
       clearTimeout(this.captureTimeout);
       this.captureTimeout = null;
+    }
+    if (this.waylandWatcher) {
+      this.waylandWatcher.kill();
+      this.waylandWatcher = null;
     }
   }
 
@@ -57,12 +71,107 @@ export class ClipboardCapture {
   }
 
   /**
-   * Start native clipboard listener (X11/Windows/macOS).
+   * Watch the Wayland clipboard via `wl-paste --watch`. Returns false when
+   * not on Wayland or wl-paste is unavailable (caller falls back to polling).
    */
-  private startNativeListener(): void {
-    // Electron's clipboard API doesn't have a change event,
-    // so we rely on polling. This method is a placeholder
-    // if we want to add platform-specific listeners later.
+  private startWaylandWatcher(): boolean {
+    const onWayland =
+      process.platform === 'linux' &&
+      (!!process.env.WAYLAND_DISPLAY || process.env.XDG_SESSION_TYPE === 'wayland');
+    if (!onWayland) return false;
+
+    const probe = spawnSync('wl-paste', ['--version'], { timeout: 3000 });
+    if (probe.error || probe.status !== 0) {
+      console.warn(
+        '[ClipboardCapture] wl-paste not found — falling back to polling, ' +
+          'which cannot see clipboard changes on Wayland without window focus. ' +
+          'Install wl-clipboard for reliable capture.',
+      );
+      return false;
+    }
+
+    // wl-paste pipes the new contents to the command's stdin on every
+    // selection change. We use it purely as a change signal (drain stdin,
+    // print one line), then re-read typed content with one-shot wl-paste
+    // calls so html/image/text priority matches the polling path.
+    const watcher = spawn(
+      'wl-paste',
+      ['--watch', 'sh', '-c', 'cat > /dev/null; echo x'],
+      { stdio: ['ignore', 'pipe', 'ignore'] },
+    );
+    watcher.stdout.on('data', () => {
+      void this.processWaylandClipboard();
+    });
+    watcher.on('error', (err) => {
+      console.error('[ClipboardCapture] wl-paste watcher error:', err);
+    });
+    watcher.on('exit', (code) => {
+      this.waylandWatcher = null;
+      if (this.isCapturing) {
+        console.warn(
+          `[ClipboardCapture] wl-paste watcher exited (code ${code}) — falling back to polling.`,
+        );
+        this.startPolling();
+      }
+    });
+
+    this.waylandWatcher = watcher;
+    console.log('[ClipboardCapture] Watching Wayland clipboard via wl-paste');
+    return true;
+  }
+
+  /**
+   * Read the Wayland clipboard with wl-paste and store it, using the same
+   * html > image > text priority as the Electron polling path.
+   */
+  private async processWaylandClipboard(): Promise<void> {
+    try {
+      const { stdout: typesRaw } = await execFileAsync('wl-paste', ['--list-types'], {
+        timeout: 5000,
+      });
+      const types = typesRaw.split('\n').map((t) => t.trim()).filter(Boolean);
+      const hasHtml = types.some((t) => t.startsWith('text/html'));
+      const hasPng = types.includes('image/png');
+      const hasText = types.some((t) => t.startsWith('text/plain') || t === 'text');
+
+      if (hasHtml && this.config.saveHtml) {
+        const { stdout } = await execFileAsync(
+          'wl-paste',
+          ['--no-newline', '--type', 'text/html'],
+          { timeout: 5000, maxBuffer: MAX_TEXT_BYTES },
+        );
+        if (stdout.length > 0) {
+          await this.captureContent(stdout, 'html', 'html');
+          return;
+        }
+      }
+
+      if (hasPng && this.config.saveImages) {
+        const { stdout } = await execFileAsync('wl-paste', ['--type', 'image/png'], {
+          encoding: 'buffer',
+          timeout: 10000,
+          maxBuffer: MAX_IMAGE_BYTES,
+        });
+        if (stdout.length > 0) {
+          await this.captureContent(this.saveImageToDisk(stdout), 'image', 'image');
+          return;
+        }
+      }
+
+      if (hasText) {
+        // wl-paste's special "text" type matches any text/* offer
+        const { stdout } = await execFileAsync(
+          'wl-paste',
+          ['--no-newline', '--type', 'text'],
+          { timeout: 5000, maxBuffer: MAX_TEXT_BYTES },
+        );
+        if (stdout.length > 0) {
+          await this.captureContent(stdout, 'text', 'text');
+        }
+      }
+    } catch (err) {
+      console.error('[ClipboardCapture] Error capturing Wayland clipboard:', err);
+    }
   }
 
   /**
@@ -127,23 +236,30 @@ export class ClipboardCapture {
 
       if (!content || content.length === 0) return;
 
-      // Calculate hash for deduplication
-      const hash = this.calculateHash(content);
-
-      // Skip if same as last captured
-      if (hash === this.lastClipHash) return;
-      this.lastClipHash = hash;
-
-      // Check for duplicate in database
-      const exists = await clipExistsByHash(hash);
-      if (exists) return;
-
-      // Save to database
-      await insertClip(content, clipType, source);
+      await this.captureContent(content, clipType, source);
 
     } catch (err) {
       console.error('[ClipboardCapture] Error capturing clipboard:', err);
     }
+  }
+
+  /**
+   * Deduplicate and persist captured clipboard content.
+   */
+  private async captureContent(content: string, clipType: ClipType, source: string): Promise<void> {
+    // Calculate hash for deduplication
+    const hash = this.calculateHash(content);
+
+    // Skip if same as last captured
+    if (hash === this.lastClipHash) return;
+    this.lastClipHash = hash;
+
+    // Check for duplicate in database
+    const exists = await clipExistsByHash(hash);
+    if (exists) return;
+
+    // Save to database
+    await insertClip(content, clipType, source);
   }
 
   /**

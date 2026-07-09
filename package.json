@@ -18,16 +18,17 @@
   "author": "Serious Geese, LLC <https://seriousgeese.dev>",
   "license": "MIT",
   "scripts": {
-    "start": "tsc && electron .",
-    "dev": "tsc && electron .",
-    "build": "tsc",
+    "start": "npm run build && bash -c 'exec -a CtrlC electron .'",
+    "dev": "npm run build && bash -c 'exec -a CtrlC electron .'",
+    "build": "tsc && cp src/renderer/*.html dist/renderer/",
     "build:app": "electron-builder",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "npm run build && vitest run --config vitest.e2e.config.ts"
   },
   "dependencies": {
     "electron-store": "^8.1.0",
@@ -36,6 +37,7 @@
     "uuid": "^14.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@types/node": "^26.0.1",
     "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.62.0",
@@ -45,6 +47,8 @@
     "electron": "^42.5.0",
     "electron-builder": "^25.0.0",
     "eslint": "^10.5.0",
+    "jsdom": "^29.1.1",
+    "playwright": "^1.61.1",
     "typescript": "^5.6.0",
     "vitest": "^4.1.9"
   }

@@ -23,7 +23,7 @@ export interface AppConfig {
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
-  hotkey: 'CommandOrControl+Backquote',
+  hotkey: 'CommandOrControl+`',
   historyDepth: 100,
   retentionDays: 30,
   saveImages: true,

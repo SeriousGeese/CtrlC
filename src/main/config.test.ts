@@ -2,65 +2,110 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import * as config from './config';
 
-describe('Config module', () => {
-  let tempDir: string;
+// The config module uses module-level state (dataDir resolution via env vars).
+// We import the functions we need after setting up a temp environment.
+import { loadConfig, saveConfig, getDataDir, getClipsDir } from './config';
+import { DEFAULT_CONFIG, AppConfig } from '../shared/types';
+
+describe('config module', () => {
+  const tmpDir = path.join(os.tmpdir(), `ctrlc-test-${Date.now()}`);
+  const origHome = process.env.HOME;
+  const origDataDir = process.env.CTRLC_DATA_DIR;
 
   beforeEach(() => {
-    // Create a temporary data directory for tests
-    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ctrlc-test-'));
-    process.env.CTRLC_DATA_DIR = tempDir;
+    // Point data dir to temp so tests don't touch ~/.CtrlC
+    process.env.CTRLC_DATA_DIR = tmpDir;
+    if (!fs.existsSync(tmpDir)) {
+      fs.mkdirSync(tmpDir, { recursive: true });
+    }
   });
 
   afterEach(() => {
-    // Clean up temp directory
-    if (tempDir && fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true });
+    // Restore env
+    if (origHome) process.env.HOME = origHome;
+    if (origDataDir) {
+      process.env.CTRLC_DATA_DIR = origDataDir;
+    } else {
+      delete process.env.CTRLC_DATA_DIR;
     }
-    delete process.env.CTRLC_DATA_DIR;
+    // Clean up temp dir
+    if (fs.existsSync(tmpDir)) {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 
-  it('should return defaults when no config file exists', () => {
-    const cfg = config.loadConfig();
-    expect(cfg.historyDepth).toBe(100);
-    expect(cfg.retentionDays).toBe(30);
-    expect(cfg.saveImages).toBe(true);
-    expect(cfg.autoStart).toBe(false);
+  describe('getDataDir / getClipsDir', () => {
+    it('respects CTRLC_DATA_DIR env var', () => {
+      const d = getDataDir();
+      expect(d).toBe(tmpDir);
+    });
+
+    it('returns clips dir under data dir', () => {
+      const d = getClipsDir();
+      expect(d).toBe(path.join(tmpDir, 'Clips'));
+    });
   });
 
-  it('should merge config file values with defaults', () => {
-    // Write a partial config file
-    const configPath = path.join(tempDir, 'config.toml');
-    fs.writeFileSync(configPath, 'historyDepth = 50\nsaveImages = false\n');
+  describe('loadConfig (defaults)', () => {
+    it('returns DEFAULT_CONFIG when no config file exists', () => {
+      const cfg = loadConfig();
+      expect(cfg.hotkey).toBe(DEFAULT_CONFIG.hotkey);
+      expect(cfg.historyDepth).toBe(DEFAULT_CONFIG.historyDepth);
+      expect(cfg.retentionDays).toBe(DEFAULT_CONFIG.retentionDays);
+      expect(cfg.saveImages).toBe(DEFAULT_CONFIG.saveImages);
+      expect(cfg.saveHtml).toBe(DEFAULT_CONFIG.saveHtml);
+      expect(cfg.saveBinary).toBe(DEFAULT_CONFIG.saveBinary);
+      expect(cfg.autoStart).toBe(DEFAULT_CONFIG.autoStart);
+    });
 
-    const cfg = config.loadConfig();
-    expect(cfg.historyDepth).toBe(50);
-    expect(cfg.saveImages).toBe(false);
-    expect(cfg.retentionDays).toBe(30); // default still applies
+    it('default hotkey uses backtick character, not Backquote string', () => {
+      const cfg = loadConfig();
+      // The default must use the actual backtick character for Electron 42 compat
+      expect(cfg.hotkey.includes('Backquote')).toBe(false);
+      expect(cfg.hotkey).toContain('`');
+    });
+
+    it('hotkey is a valid Electron accelerator format', () => {
+      const cfg = loadConfig();
+      // Should be CommandOrControl+` — the backtick character, not Backquote
+      expect(cfg.hotkey).toMatch(/^CommandOrControl\+`$/);
+    });
   });
 
-  it('should save and reload config', () => {
-    const partialConfig = {
-      hotkey: 'Ctrl+Alt+C',
-      historyDepth: 50,
-      saveImages: false,
-    };
+  describe('loadConfig with existing config file', () => {
+    it('merges file values on top of defaults', () => {
+      const configPath = path.join(tmpDir, 'config.toml');
+      fs.writeFileSync(configPath, [
+        '# CtrlC config',
+        'hotkey = "Ctrl+Shift+V"',
+        'historyDepth = 50',
+      ].join('\n'), 'utf-8');
 
-    config.saveConfig(partialConfig);
-
-    const reloaded = config.loadConfig();
-    expect(reloaded.hotkey).toBe('Ctrl+Alt+C');
-    expect(reloaded.historyDepth).toBe(50);
-    expect(reloaded.saveImages).toBe(false);
+      const cfg = loadConfig();
+      expect(cfg.hotkey).toBe('Ctrl+Shift+V');
+      expect(cfg.historyDepth).toBe(50);
+      // Defaults preserved for unspecified keys
+      expect(cfg.retentionDays).toBe(DEFAULT_CONFIG.retentionDays);
+      expect(cfg.saveImages).toBe(true);
+    });
   });
 
-  it('should return correct data directory path', () => {
-    expect(config.getDataDir()).toBe(tempDir);
-  });
+  describe('saveConfig', () => {
+    it('writes a valid TOML file that can be read back', () => {
+      const updates: Partial<AppConfig> = {
+        hotkey: 'Ctrl+Shift+H',
+        historyDepth: 200,
+        saveImages: false,
+      };
 
-  it('should return correct clips directory path', () => {
-    const clipsDir = config.getClipsDir();
-    expect(clipsDir).toBe(path.join(tempDir, 'Clips'));
+      saveConfig(updates);
+
+      // Read it back via loadConfig
+      const cfg = loadConfig();
+      expect(cfg.hotkey).toBe('Ctrl+Shift+H');
+      expect(cfg.historyDepth).toBe(200);
+      expect(cfg.saveImages).toBe(false);
+    });
   });
 });

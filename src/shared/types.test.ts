@@ -42,7 +42,7 @@ describe('DEFAULT_CONFIG', () => {
     expect(DEFAULT_CONFIG.saveHtml).toBe(true);
     expect(DEFAULT_CONFIG.saveBinary).toBe(true);
     expect(DEFAULT_CONFIG.autoStart).toBe(false);
-    expect(DEFAULT_CONFIG.hotkey).toBe('CommandOrControl+Backquote');
+    expect(DEFAULT_CONFIG.hotkey).toBe('CommandOrControl+`');
   });
 
   it('should have empty dataDir (resolved at runtime)', () => {

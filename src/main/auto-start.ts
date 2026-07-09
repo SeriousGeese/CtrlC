@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import os from 'node:os';
+import { app } from 'electron';
 
 const APP_NAME = 'ctrlc';
 const DESKTOP_FILENAME = `${APP_NAME}.desktop`;
@@ -17,7 +18,12 @@ export function enableAutoStart(): void {
     fs.mkdirSync(autostartDir, { recursive: true, mode: 0o700 });
   }
 
-  const executable = process.execPath;
+  // In dev (process.defaultApp), execPath is the bare electron binary and
+  // needs the app path as its first argument; a packaged binary must not
+  // receive it.
+  const executable = process.defaultApp
+    ? `${process.execPath} ${app.getAppPath()}`
+    : process.execPath;
   const desktopPath = path.join(autostartDir, DESKTOP_FILENAME);
   const iconPath = path.join(__dirname, '../../assets/tray-icon.png');
 

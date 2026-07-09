@@ -39,12 +39,12 @@ export class TrayManager extends EventEmitter {
 
   private shortenHotkey(hotkey: string): string {
     if (!hotkey) return '';
+    // Strip modifier prefix for display — tooltip area is small
     return hotkey
       .replace(/^CommandOrControl\+/g, '')
       .replace(/^Command\+/g, '')
       .replace(/^Control\+/g, '')
-      .replace(/\+Backquote/g, '+`')
-      .replace(/\+backquote/g, '+`');
+      .replace(/[Bb]ackquote/g, '`');
   }
 
   private createTray(): void {
