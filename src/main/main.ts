@@ -229,11 +229,16 @@ function setupIPC(): void {
     if (clip) return copyClipToSystem(clip);
     return false;
   });
-  ipcMain.handle('clips:paste', async (_event, id: string) => {
+  ipcMain.handle('clips:paste', async (_event, id: string, plain = false) => {
     const clips = await getRecentClips(config.historyDepth);
     const clip = clips.find((c: ClipData) => c.id === id);
     if (!clip) return false;
-    await copyClipToSystem(clip);
+    if (plain && clip.type === 'html') {
+      // Plain-text paste: offer only the stripped text, no html flavor
+      clipboard.writeText(clip.contentText || htmlToText(clip.content));
+    } else {
+      await copyClipToSystem(clip);
+    }
     // Pasted clip moves to the top of the history (Ditto behavior)
     await touchClipByHash(clip.contentHash);
     // Hide, explicitly re-activate the pre-popup window (KWin's implicit

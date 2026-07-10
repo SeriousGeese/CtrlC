@@ -1,6 +1,17 @@
 import { BrowserWindow, ipcMain } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
+import { centerOnPrimary } from './popup/position';
+
+// Dialogs always open centered on the primary monitor. The position is set
+// both in the constructor and re-asserted after the window maps — the window
+// manager's map-time placement can override the requested position.
+function centerWindowOnPrimary(win: BrowserWindow, width: number, height: number): void {
+  const { x, y } = centerOnPrimary(width, height);
+  win.setPosition(x, y, false);
+  win.once('show', () => win.setPosition(x, y, false));
+  win.once('ready-to-show', () => win.setPosition(x, y, false));
+}
 
 export class SettingsManager {
   private window: BrowserWindow | null = null;
@@ -29,6 +40,7 @@ export class SettingsManager {
         nodeIntegration: false,
       },
     });
+    centerWindowOnPrimary(this.window, 480, 440);
 
     // Set app icon
     const iconPath = path.join(__dirname, '../../assets/tray-icon.png');
@@ -80,6 +92,7 @@ export class AboutManager {
         nodeIntegration: false,
       },
     });
+    centerWindowOnPrimary(this.window, 360, 320);
 
     void this.window.loadFile(path.join(__dirname, '../renderer/about.html'));
 

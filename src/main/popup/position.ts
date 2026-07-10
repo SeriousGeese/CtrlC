@@ -43,6 +43,15 @@ function centerOf(display: Electron.Display): Point {
   };
 }
 
+/** Center a window of the given size on the primary display's work area. */
+export function centerOnPrimary(width: number, height: number): Point {
+  const area = screen.getPrimaryDisplay().workArea;
+  return {
+    x: Math.round(area.x + area.width / 2 - width / 2),
+    y: Math.round(area.y + area.height / 2 - height / 2),
+  };
+}
+
 /** Just below the pointer; flips above it when too close to the bottom. */
 function belowPointer(): Point {
   return placeBelowPoint(screen.getCursorScreenPoint());

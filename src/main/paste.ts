@@ -31,6 +31,9 @@ function ydotoolEnv(): NodeJS.ProcessEnv {
 let warnedNoTool = false;
 
 export async function synthesizePaste(): Promise<boolean> {
+  // Test hook: exercise the full selection flow without injecting keys into
+  // whatever window regains focus.
+  if (process.env.CTRLC_NO_PASTE_INJECT) return false;
   if (process.platform === 'win32' || process.platform === 'darwin') {
     // TODO: SendInput / CGEvent when those platforms are wired up.
     return false;

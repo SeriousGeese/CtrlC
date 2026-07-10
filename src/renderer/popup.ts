@@ -21,6 +21,24 @@ interface ClipData {
 let clips: ClipData[] = [];
 let selectedIndex = -1;
 let filteredClips: ClipData[] = [];
+// Modifier held during selection to paste as plain text (from config)
+let plainPasteModifier = 'ctrl';
+
+function isPlainModifier(e: MouseEvent | KeyboardEvent): boolean {
+  switch (plainPasteModifier) {
+    case 'shift': return e.shiftKey;
+    case 'alt': return e.altKey;
+    case 'ctrl':
+    default: return e.ctrlKey;
+  }
+}
+
+async function refreshConfig(): Promise<void> {
+  const cfg = await window.ctrlc.getConfig() as { plainPasteModifier?: string };
+  if (cfg && typeof cfg.plainPasteModifier === 'string') {
+    plainPasteModifier = cfg.plainPasteModifier;
+  }
+}
 
 // DOM elements (always present after init)
 const searchInput = document.getElementById('search-input')! as HTMLInputElement;
@@ -29,7 +47,7 @@ const clipCount = document.getElementById('clip-count')!;
 
 // Initialize on load
 async function init(): Promise<void> {
-  await window.ctrlc.getConfig();
+  await refreshConfig();
   void loadClips();
   void setupEventListeners();
   searchInput.focus();
@@ -102,11 +120,12 @@ function renderClips(): void {
     badge.textContent = clip.type.toUpperCase();
     item.appendChild(badge);
 
-    // Click to paste (main copies, hides the popup, and injects Ctrl+V)
-    item.addEventListener('click', () => {
+    // Click to paste (main copies, hides the popup, and injects Ctrl+V).
+    // Holding the configured modifier pastes as plain text.
+    item.addEventListener('click', (e: MouseEvent) => {
       const idx = parseInt(item.dataset.index || '0');
       const clip = filteredClips[idx];
-      void window.ctrlc.pasteClip(clip.id);
+      void window.ctrlc.pasteClip(clip.id, isPlainModifier(e));
     });
 
     clipList.appendChild(item);
@@ -123,6 +142,7 @@ function setupEventListeners(): void {
     if (document.visibilityState === 'visible') {
       searchInput.value = '';
       selectedIndex = -1;
+      void refreshConfig(); // settings may have changed while hidden
       void loadClips();
       searchInput.focus();
     }
@@ -180,22 +200,18 @@ function handleHotkeys(e: KeyboardEvent): void {
     const index = parseInt(e.key) - 1;
     if (index < filteredClips.length) {
       const clip = filteredClips[index];
-      void window.ctrlc.pasteClip(clip.id);
+      void window.ctrlc.pasteClip(clip.id, isPlainModifier(e));
     }
     return;
   }
 
-  // Ctrl+Shift+V — paste as plain text
+  // Ctrl+Shift+V — paste as plain text (same path as the modifier)
   if (e.key === 'v' && e.ctrlKey && e.shiftKey) {
     e.preventDefault();
     const idx = selectedIndex >= 0 ? selectedIndex : 0;
     if (idx < filteredClips.length) {
       const clip = filteredClips[idx];
-      // Copy as plain text (strips HTML)
-      const textOnly = stripHtml(clip.content);
-      void navigator.clipboard.writeText(textOnly).then(() => {
-        void window.ctrlc.closePopup();
-      });
+      void window.ctrlc.pasteClip(clip.id, true);
     }
     return;
   }
@@ -228,13 +244,13 @@ function handleHotkeys(e: KeyboardEvent): void {
     return;
   }
 
-  // Enter — paste selected
+  // Enter — paste selected (modifier held = plain text)
   if (e.key === 'Enter') {
     e.preventDefault();
     const idx = selectedIndex >= 0 ? selectedIndex : 0;
     if (idx < filteredClips.length) {
       const clip = filteredClips[idx];
-      void window.ctrlc.pasteClip(clip.id);
+      void window.ctrlc.pasteClip(clip.id, isPlainModifier(e));
     }
   }
 }

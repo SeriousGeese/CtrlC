@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { DEFAULT_CONFIG, AppConfig, PopupPositionMode, POPUP_POSITION_MODES } from '../shared/types';
+import { DEFAULT_CONFIG, AppConfig, PopupPositionMode, POPUP_POSITION_MODES, PlainPasteModifier, PLAIN_PASTE_MODIFIERS } from '../shared/types';
 
 const CONFIG_FILENAME = 'config.toml';
 const DATA_DIR_NAME = '.CtrlC';
@@ -38,6 +38,7 @@ function parseToml(content: string): ParsedConfig {
     autoStart: undefined,
     dataDir: undefined,
     popupPosition: undefined,
+    plainPasteModifier: undefined,
   };
   const lines = content.split('\n');
 
@@ -80,6 +81,7 @@ interface ParsedConfig {
   autoStart?: boolean;
   dataDir?: string;
   popupPosition?: string;
+  plainPasteModifier?: string;
 }
 
 function serializeToml(config: Partial<AppConfig>): string {
@@ -118,6 +120,9 @@ function serializeToml(config: Partial<AppConfig>): string {
   if (config.popupPosition !== undefined) {
     pairs.push(`popupPosition = "${config.popupPosition}"`);
   }
+  if (config.plainPasteModifier !== undefined) {
+    pairs.push(`plainPasteModifier = "${config.plainPasteModifier}"`);
+  }
 
   return [...lines, ...pairs].join('\n') + '\n';
 }
@@ -146,6 +151,10 @@ export function loadConfig(): AppConfig {
     if (parsed.popupPosition !== undefined &&
         POPUP_POSITION_MODES.includes(parsed.popupPosition as PopupPositionMode)) {
       fileConfig.popupPosition = parsed.popupPosition as PopupPositionMode;
+    }
+    if (parsed.plainPasteModifier !== undefined &&
+        PLAIN_PASTE_MODIFIERS.includes(parsed.plainPasteModifier as PlainPasteModifier)) {
+      fileConfig.plainPasteModifier = parsed.plainPasteModifier as PlainPasteModifier;
     }
   }
 

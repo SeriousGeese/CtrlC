@@ -20,6 +20,11 @@ export const POPUP_POSITION_MODES: PopupPositionMode[] = [
   'mouse', 'center-primary', 'center-current',
 ];
 
+/** Modifier held while selecting a clip to paste it as plain text. */
+export type PlainPasteModifier = 'ctrl' | 'shift' | 'alt';
+
+export const PLAIN_PASTE_MODIFIERS: PlainPasteModifier[] = ['ctrl', 'shift', 'alt'];
+
 export interface AppConfig {
   hotkey: string;
   historyDepth: number;
@@ -30,6 +35,7 @@ export interface AppConfig {
   autoStart: boolean;
   dataDir: string;
   popupPosition: PopupPositionMode;
+  plainPasteModifier: PlainPasteModifier;
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
@@ -42,6 +48,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   autoStart: false,
   dataDir: '', // resolved at runtime to ~/.CtrlC
   popupPosition: 'mouse',
+  plainPasteModifier: 'ctrl',
 };
 
 // Tray menu item definitions

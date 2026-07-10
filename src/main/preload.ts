@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('ctrlc', {
   getRecentClips: () => ipcRenderer.invoke('clips:get-recent'),
   deleteClip: (id: string) => ipcRenderer.invoke('clips:delete', id),
   copyClip: (id: string) => ipcRenderer.invoke('clips:copy', id),
-  pasteClip: (id: string) => ipcRenderer.invoke('clips:paste', id),
+  pasteClip: (id: string, plain?: boolean) => ipcRenderer.invoke('clips:paste', id, plain === true),
   capture: () => ipcRenderer.invoke('clips:capture'),
   clearHistory: () => ipcRenderer.invoke('clips:clear'),
 
@@ -33,7 +33,7 @@ declare global {
       getRecentClips: () => Promise<ClipData[]>;
       deleteClip: (id: string) => Promise<boolean>;
       copyClip: (id: string) => Promise<boolean>;
-      pasteClip: (id: string) => Promise<boolean>;
+      pasteClip: (id: string, plain?: boolean) => Promise<boolean>;
       capture: () => Promise<boolean>;
       clearHistory: () => Promise<boolean>;
       showPopup: (x: number, y: number) => Promise<void>;

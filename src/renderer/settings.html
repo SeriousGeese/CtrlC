@@ -281,6 +281,14 @@
           <option value="center-current">Center of Current Screen</option>
         </select>
       </div>
+      <div class="setting-row">
+        <label>Plain-text paste modifier</label>
+        <select id="plain-paste-modifier">
+          <option value="ctrl">Ctrl</option>
+          <option value="shift">Shift</option>
+          <option value="alt">Alt</option>
+        </select>
+      </div>
     </div>
 
     <div class="setting-group">
@@ -374,6 +382,7 @@
       document.getElementById('save-binary').checked = currentConfig.saveBinary;
       document.getElementById('auto-start').checked = currentConfig.autoStart;
       document.getElementById('popup-position').value = currentConfig.popupPosition || 'mouse';
+      document.getElementById('plain-paste-modifier').value = currentConfig.plainPasteModifier || 'ctrl';
       document.getElementById('hotkey-display').textContent = shortenHotkey(currentConfig.hotkey);
     }
 
@@ -386,6 +395,7 @@
         saveBinary: document.getElementById('save-binary').checked,
         autoStart: document.getElementById('auto-start').checked,
         popupPosition: document.getElementById('popup-position').value,
+        plainPasteModifier: document.getElementById('plain-paste-modifier').value,
       };
       await window.ctrlc.updateConfig(updates);
     }
@@ -470,6 +480,7 @@
     document.getElementById('save-binary').addEventListener('change', saveSettings);
     document.getElementById('auto-start').addEventListener('change', saveSettings);
     document.getElementById('popup-position').addEventListener('change', saveSettings);
+    document.getElementById('plain-paste-modifier').addEventListener('change', saveSettings);
 
     // Hotkey display click to record
     const hotkeyDisplay = document.getElementById('hotkey-display');
