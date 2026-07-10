@@ -46,6 +46,8 @@ function makeEl(): Record<string, unknown> {
     dataset: {},
     classList: { toggle() {}, add() {}, remove() {}, contains: () => false },
     style: {},
+    value: '', // popup.ts reads searchInput.value at load (applyFilter)
+    contains: () => false,
   };
   // innerHTML / textContent as no-op accessors
   Object.defineProperty(el, 'innerHTML', { get: () => '', set: () => {} });

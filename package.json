@@ -1,6 +1,6 @@
 {
   "name": "ctrlc",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Cross-platform clipboard manager with hotkey-triggered popup",
   "main": "dist/main/main.js",
   "build": {
