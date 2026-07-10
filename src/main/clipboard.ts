@@ -1,6 +1,6 @@
 import { clipboard } from 'electron';
 import { ClipType, AppConfig } from '../shared/types';
-import { insertClip, clipExistsByHash, cleanExpiredClips } from './db';
+import { insertClip, touchClipByHash, cleanExpiredClips } from './db';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { spawn, spawnSync, execFile, ChildProcess } from 'node:child_process';
@@ -265,13 +265,15 @@ export class ClipboardCapture {
     // Calculate hash for deduplication
     const hash = this.calculateHash(content);
 
-    // Skip if same as last captured
+    // Skip if same as last captured (apps often set the clipboard several
+    // times per copy; don't churn the DB for each event)
     if (hash === this.lastClipHash) return;
     this.lastClipHash = hash;
 
-    // Check for duplicate in database
-    const exists = await clipExistsByHash(hash);
-    if (exists) return;
+    // Re-copied content bumps the existing clip to the top of the history
+    // instead of creating a duplicate or being silently swallowed.
+    const bumped = await touchClipByHash(hash);
+    if (bumped) return;
 
     // Save to database
     await insertClip(content, clipType, source, plainText || undefined);

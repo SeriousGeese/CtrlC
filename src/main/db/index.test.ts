@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 
-import { setDbPath, initDB, closeDB, insertClip, getRecentClips, deleteClip, cleanExpiredClips, clearAllClips, clipExistsByHash } from './index';
+import { setDbPath, initDB, closeDB, insertClip, getRecentClips, deleteClip, cleanExpiredClips, clearAllClips, clipExistsByHash, touchClipByHash } from './index';
 
 describe('DB module', () => {
   const tmpDir = path.join(os.tmpdir(), `ctrlc-db-test-${Date.now()}`);
@@ -34,6 +34,25 @@ describe('DB module', () => {
       await insertClip('plain', 'text');
       const [clip] = await getRecentClips(1);
       expect(clip.contentText).toBeNull();
+    });
+  });
+
+  describe('touchClipByHash', () => {
+    it('bumps an existing clip to the top and reports true', async () => {
+      const first = await insertClip('recopied later', 'text');
+      await sleep(10);
+      await insertClip('newer clip', 'text');
+
+      const bumped = await touchClipByHash(first.contentHash);
+      expect(bumped).toBe(true);
+
+      const recent = await getRecentClips(10);
+      expect(recent[0].content).toBe('recopied later');
+      expect(recent.length).toBe(2); // no duplicate row
+    });
+
+    it('returns false for unknown hashes', async () => {
+      expect(await touchClipByHash('no-such-hash')).toBe(false);
     });
   });
 

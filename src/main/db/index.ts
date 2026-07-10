@@ -80,6 +80,19 @@ export function clipExistsByHash(hash: string): Promise<boolean> {
     .then((row: { '1': number | undefined } | undefined) => row !== undefined);
 }
 
+/**
+ * Re-copied content moves to the top of the history (Ditto behavior)
+ * instead of keeping its original position. Returns true when a clip with
+ * this hash existed and was bumped.
+ */
+export async function touchClipByHash(hash: string): Promise<boolean> {
+  const result = await db!.run(
+    'UPDATE clips SET created_at = ? WHERE content_hash = ?',
+    Date.now(), hash
+  );
+  return (result.changes ?? 0) > 0;
+}
+
 export function getClipCount(): Promise<number> {
   return db!.get('SELECT COUNT(*) as count FROM clips')
     .then((row: { count: number }) => row.count);

@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, clipboard, Menu, nativeImage, dialog } fro
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { loadConfig, saveConfig, getDataDir, getClipsDir } from './config';
-import { initDB, getRecentClips, deleteClip, cleanExpiredClips, clearAllClips, setDbPath, closeDB } from './db';
+import { initDB, getRecentClips, deleteClip, cleanExpiredClips, clearAllClips, touchClipByHash, setDbPath, closeDB } from './db';
 import { TrayManager } from './tray/tray';
 import { HotkeyManager } from './hotkey/hotkey';
 import { PopupManager } from './popup/popup';
@@ -14,6 +14,7 @@ import { ClipData, AppConfig } from '../shared/types';
 import { computePopupPosition, POPUP_WIDTH, POPUP_HEIGHT } from './popup/position';
 import { synthesizePaste } from './paste';
 import { ensureKWinHelper, restorePreviousFocus, placePopupAtCursor, placePopupCenterCursorScreen } from './kwin/helper';
+import { htmlToText } from './html-text';
 
 // Set process name for task managers / ps
 process.title = 'CtrlC';
@@ -115,21 +116,6 @@ function createPopupWindow(): BrowserWindow {
   return win;
 }
 
-// Rough tag-strip for html clips captured before the plain-text flavor was
-// stored (main process has no DOM; this is only the fallback).
-function naiveStripHtml(html: string): string {
-  return html
-    .replace(/<(style|script)[\s\S]*?<\/\1>/gi, '')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;/g, "'")
-    .trim();
-}
-
 // Copy a clip to system clipboard
 async function copyClipToSystem(clip: ClipData): Promise<boolean> {
   if (clip.type === 'image') {
@@ -143,7 +129,7 @@ async function copyClipToSystem(clip: ClipData): Promise<boolean> {
     // text. Never hand raw markup to the text flavor.
     clipboard.write({
       html: clip.content,
-      text: clip.contentText || naiveStripHtml(clip.content),
+      text: clip.contentText || htmlToText(clip.content),
     });
   } else {
     clipboard.writeText(clip.content);
@@ -244,6 +230,8 @@ function setupIPC(): void {
     const clip = clips.find((c: ClipData) => c.id === id);
     if (!clip) return false;
     await copyClipToSystem(clip);
+    // Pasted clip moves to the top of the history (Ditto behavior)
+    await touchClipByHash(clip.contentHash);
     // Hide, explicitly re-activate the pre-popup window (KWin's implicit
     // focus restore is unreliable and lands in the wrong app), then inject
     // Ctrl+V once the target has focus.
