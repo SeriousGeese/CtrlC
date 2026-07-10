@@ -5,6 +5,7 @@ export interface ClipData {
   createdAt: number;
   type: ClipType;
   content: string;
+  contentText?: string; // plain-text flavor captured alongside html clips
   contentHash: string;
   source?: string; // app that copied it
   preview?: string; // base64 PNG attached for image clips (content is the file path)

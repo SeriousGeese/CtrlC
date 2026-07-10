@@ -12,6 +12,7 @@ interface ClipData {
   createdAt: number;
   type: 'text' | 'html' | 'image' | 'file' | 'binary';
   content: string;
+  contentText?: string; // plain-text flavor captured alongside html clips
   contentHash: string;
   source?: string;
   preview?: string; // base64 PNG for image clips (content is the file path)
@@ -40,7 +41,7 @@ async function init(): Promise<void> {
 // raw markup again, just return clip.content unconditionally here.
 function displayText(clip: ClipData): string {
   if (clip.type === 'html') {
-    return stripHtml(clip.content).trim() || clip.content;
+    return clip.contentText?.trim() || stripHtml(clip.content).trim() || clip.content;
   }
   return clip.content;
 }

@@ -115,6 +115,21 @@ function createPopupWindow(): BrowserWindow {
   return win;
 }
 
+// Rough tag-strip for html clips captured before the plain-text flavor was
+// stored (main process has no DOM; this is only the fallback).
+function naiveStripHtml(html: string): string {
+  return html
+    .replace(/<(style|script)[\s\S]*?<\/\1>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .trim();
+}
+
 // Copy a clip to system clipboard
 async function copyClipToSystem(clip: ClipData): Promise<boolean> {
   if (clip.type === 'image') {
@@ -123,7 +138,13 @@ async function copyClipToSystem(clip: ClipData): Promise<boolean> {
     if (img.isEmpty()) return false;
     clipboard.writeImage(img);
   } else if (clip.type === 'html') {
-    clipboard.write({ html: clip.content, text: clip.content });
+    // Offer both flavors, like the original copy did: rich targets take the
+    // html, plain-text targets (terminals, Discord, code editors) take the
+    // text. Never hand raw markup to the text flavor.
+    clipboard.write({
+      html: clip.content,
+      text: clip.contentText || naiveStripHtml(clip.content),
+    });
   } else {
     clipboard.writeText(clip.content);
   }

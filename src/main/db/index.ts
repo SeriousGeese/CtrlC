@@ -32,6 +32,7 @@ export async function initDB(): Promise<void> {
     CREATE TABLE IF NOT EXISTS clips (
       id TEXT PRIMARY KEY,
       content TEXT NOT NULL,
+      content_text TEXT,
       content_hash TEXT NOT NULL,
       clip_type TEXT NOT NULL DEFAULT 'text',
       source TEXT,
@@ -41,24 +42,31 @@ export async function initDB(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_clips_hash ON clips(content_hash);
     CREATE INDEX IF NOT EXISTS idx_clips_created ON clips(created_at DESC);
   `);
+
+  // Migration for databases created before content_text existed (the
+  // plain-text flavor stored alongside html clips).
+  const cols = await db.all(`PRAGMA table_info(clips)`);
+  if (!cols.some((c: { name: string }) => c.name === 'content_text')) {
+    await db.exec('ALTER TABLE clips ADD COLUMN content_text TEXT');
+  }
 }
 
-export async function insertClip(content: string, type: string, source?: string): Promise<ClipData> {
+export async function insertClip(content: string, type: string, source?: string, contentText?: string): Promise<ClipData> {
   const id = crypto.randomUUID();
   const hash = hashContent(content);
   const now = Date.now();
 
   await db!.run(
-    'INSERT OR REPLACE INTO clips (id, content, content_hash, clip_type, source, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-    id, content, hash, type, source || null, now
+    'INSERT OR REPLACE INTO clips (id, content, content_text, content_hash, clip_type, source, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    id, content, contentText || null, hash, type, source || null, now
   );
 
-  return { id, createdAt: now, type: type as ClipData['type'], content, contentHash: hash, source };
+  return { id, createdAt: now, type: type as ClipData['type'], content, contentText, contentHash: hash, source };
 }
 
 export function getRecentClips(limit: number): Promise<ClipData[]> {
   return db!.all(
-    'SELECT id, content, content_hash AS contentHash, clip_type AS type, source, created_at AS createdAt FROM clips ORDER BY created_at DESC LIMIT ?',
+    'SELECT id, content, content_text AS contentText, content_hash AS contentHash, clip_type AS type, source, created_at AS createdAt FROM clips ORDER BY created_at DESC LIMIT ?',
     limit
   ) as Promise<ClipData[]>;
 }

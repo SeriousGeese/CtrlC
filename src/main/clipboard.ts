@@ -141,7 +141,21 @@ export class ClipboardCapture {
           { timeout: 5000, maxBuffer: MAX_TEXT_BYTES },
         );
         if (stdout.length > 0) {
-          await this.captureContent(stdout, 'html', 'html');
+          // Also capture the plain-text flavor the source app offered, so
+          // re-copying can present both (plain-text targets get clean text).
+          // Request the exact text/plain type — wl-paste's generic "text"
+          // matches text/html too and would hand us the markup back.
+          const plainType = types.find((t) => t.startsWith('text/plain'));
+          let plainText = '';
+          if (plainType) {
+            plainText = await execFileAsync(
+              'wl-paste',
+              ['--no-newline', '--type', plainType],
+              { timeout: 5000, maxBuffer: MAX_TEXT_BYTES },
+            ).then((r) => r.stdout).catch(() => '');
+          }
+          if (plainText === stdout) plainText = '';
+          await this.captureContent(stdout, 'html', 'html', plainText);
           return;
         }
       }
@@ -206,11 +220,13 @@ export class ClipboardCapture {
       const hasImage = types.some(t => t.startsWith('image/'));
 
       // Priority order: html > image > text
+      let plainText = '';
       if (hasHtml && this.config.saveHtml) {
         content = clipboard.readHTML();
         if (content && content.length > 0) {
           clipType = 'html';
           source = 'html';
+          plainText = clipboard.readText();
         }
       }
 
@@ -235,7 +251,7 @@ export class ClipboardCapture {
 
       if (!content || content.length === 0) return;
 
-      await this.captureContent(content, clipType, source);
+      await this.captureContent(content, clipType, source, plainText);
 
     } catch (err) {
       console.error('[ClipboardCapture] Error capturing clipboard:', err);
@@ -245,7 +261,7 @@ export class ClipboardCapture {
   /**
    * Deduplicate and persist captured clipboard content.
    */
-  private async captureContent(content: string, clipType: ClipType, source: string): Promise<void> {
+  private async captureContent(content: string, clipType: ClipType, source: string, plainText = ''): Promise<void> {
     // Calculate hash for deduplication
     const hash = this.calculateHash(content);
 
@@ -258,7 +274,7 @@ export class ClipboardCapture {
     if (exists) return;
 
     // Save to database
-    await insertClip(content, clipType, source);
+    await insertClip(content, clipType, source, plainText || undefined);
   }
 
   /**

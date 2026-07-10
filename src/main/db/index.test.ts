@@ -22,6 +22,21 @@ describe('DB module', () => {
     }
   });
 
+  describe('contentText (plain-text flavor for html clips)', () => {
+    it('stores and returns the plain-text flavor', async () => {
+      await insertClip('<b>bold</b>', 'html', 'html', 'bold');
+      const [clip] = await getRecentClips(1);
+      expect(clip.content).toBe('<b>bold</b>');
+      expect(clip.contentText).toBe('bold');
+    });
+
+    it('is null when not provided', async () => {
+      await insertClip('plain', 'text');
+      const [clip] = await getRecentClips(1);
+      expect(clip.contentText).toBeNull();
+    });
+  });
+
   describe('clearAllClips', () => {
     it('removes every clip', async () => {
       await insertClip('one', 'text');
