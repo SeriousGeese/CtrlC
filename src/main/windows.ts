@@ -79,8 +79,9 @@ export class AboutManager {
     }
 
     this.window = new BrowserWindow({
-      width: 360,
-      height: 320,
+      width: 380,
+      height: 440,
+      useContentSize: true, // page area, excluding the frame — no scrolling
       frame: true,
       transparent: false,
       resizable: false,
@@ -92,7 +93,7 @@ export class AboutManager {
         nodeIntegration: false,
       },
     });
-    centerWindowOnPrimary(this.window, 360, 320);
+    centerWindowOnPrimary(this.window, 380, 440);
 
     void this.window.loadFile(path.join(__dirname, '../renderer/about.html'));
 
