@@ -75,6 +75,19 @@ export function deleteClip(id: string): Promise<void> {
   return db!.run('DELETE FROM clips WHERE id = ?', id).then(() => {});
 }
 
+/**
+ * Replace a clip's content (user edit). Recomputes the dedup hash and drops
+ * the stored plain-text flavor — for html clips it no longer matches the
+ * edited markup, and the paste path derives it on demand.
+ */
+export async function updateClipContent(id: string, content: string): Promise<boolean> {
+  const result = await db!.run(
+    'UPDATE clips SET content = ?, content_hash = ?, content_text = NULL WHERE id = ?',
+    content, hashContent(content), id
+  );
+  return (result.changes ?? 0) > 0;
+}
+
 export function clipExistsByHash(hash: string): Promise<boolean> {
   return db!.get('SELECT 1 FROM clips WHERE content_hash = ? LIMIT 1', hash)
     .then((row: { '1': number | undefined } | undefined) => row !== undefined);

@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 
-import { setDbPath, initDB, closeDB, insertClip, getRecentClips, deleteClip, cleanExpiredClips, clearAllClips, clipExistsByHash, touchClipByHash } from './index';
+import { setDbPath, initDB, closeDB, insertClip, getRecentClips, deleteClip, updateClipContent, cleanExpiredClips, clearAllClips, clipExistsByHash, touchClipByHash } from './index';
 
 describe('DB module', () => {
   const tmpDir = path.join(os.tmpdir(), `ctrlc-db-test-${Date.now()}`);
@@ -34,6 +34,24 @@ describe('DB module', () => {
       await insertClip('plain', 'text');
       const [clip] = await getRecentClips(1);
       expect(clip.contentText).toBeNull();
+    });
+  });
+
+  describe('updateClipContent', () => {
+    it('replaces content, recomputes the hash, and clears content_text', async () => {
+      const clip = await insertClip('<b>old</b>', 'html', 'html', 'old');
+      const ok = await updateClipContent(clip.id, '<b>new</b>');
+      expect(ok).toBe(true);
+
+      const [updated] = await getRecentClips(1);
+      expect(updated.content).toBe('<b>new</b>');
+      expect(updated.contentText).toBeNull();
+      expect(updated.contentHash).not.toBe(clip.contentHash);
+      expect(await clipExistsByHash(clip.contentHash)).toBe(false);
+    });
+
+    it('returns false for unknown ids', async () => {
+      expect(await updateClipContent('nope', 'x')).toBe(false);
     });
   });
 

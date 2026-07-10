@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, clipboard, Menu, nativeImage, dialog } fro
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { loadConfig, saveConfig, getDataDir, getClipsDir } from './config';
-import { initDB, getRecentClips, deleteClip, cleanExpiredClips, clearAllClips, touchClipByHash, setDbPath, closeDB } from './db';
+import { initDB, getRecentClips, deleteClip, updateClipContent, cleanExpiredClips, clearAllClips, touchClipByHash, setDbPath, closeDB } from './db';
 import { TrayManager } from './tray/tray';
 import { HotkeyManager } from './hotkey/hotkey';
 import { PopupManager } from './popup/popup';
@@ -238,6 +238,12 @@ function setupIPC(): void {
     await deleteClip(id);
     clipboardCapture?.resetDedup();
     return true;
+  });
+  ipcMain.handle('clips:update', async (_event, id: string, content: string) => {
+    if (typeof content !== 'string' || content.length === 0) return false;
+    const ok = await updateClipContent(id, content);
+    clipboardCapture?.resetDedup();
+    return ok;
   });
   ipcMain.handle('clips:copy', async (_event, id: string) => {
     const clips = await getRecentClips(config.historyDepth);

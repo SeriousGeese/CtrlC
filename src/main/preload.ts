@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('ctrlc', {
   // Clips
   getRecentClips: () => ipcRenderer.invoke('clips:get-recent'),
   deleteClip: (id: string) => ipcRenderer.invoke('clips:delete', id),
+  updateClip: (id: string, content: string) => ipcRenderer.invoke('clips:update', id, content),
   copyClip: (id: string) => ipcRenderer.invoke('clips:copy', id),
   pasteClip: (id: string, plain?: boolean) => ipcRenderer.invoke('clips:paste', id, plain === true),
   capture: () => ipcRenderer.invoke('clips:capture'),
@@ -36,6 +37,7 @@ declare global {
       updateConfig: (updates: Partial<AppConfig>) => Promise<AppConfig>;
       getRecentClips: () => Promise<ClipData[]>;
       deleteClip: (id: string) => Promise<boolean>;
+      updateClip: (id: string, content: string) => Promise<boolean>;
       copyClip: (id: string) => Promise<boolean>;
       pasteClip: (id: string, plain?: boolean) => Promise<boolean>;
       capture: () => Promise<boolean>;

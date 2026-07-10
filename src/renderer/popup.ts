@@ -44,6 +44,25 @@ async function refreshConfig(): Promise<void> {
 const searchInput = document.getElementById('search-input')! as HTMLInputElement;
 const clipList = document.getElementById('clip-list')!;
 const clipCount = document.getElementById('clip-count')!;
+const contextMenu = document.getElementById('context-menu')!;
+const menuEdit = document.getElementById('menu-edit')!;
+const menuDelete = document.getElementById('menu-delete')!;
+const editView = document.getElementById('edit-view')!;
+const editTextarea = document.getElementById('edit-textarea')! as HTMLTextAreaElement;
+
+// Index (into filteredClips) the context menu was opened on
+let menuIndex = -1;
+// Clip id being edited, or null when the editor is closed
+let editingId: string | null = null;
+
+function menuVisible(): boolean {
+  return !contextMenu.classList.contains('hidden');
+}
+
+function hideContextMenu(): void {
+  contextMenu.classList.add('hidden');
+  menuIndex = -1;
+}
 
 // Initialize on load
 async function init(): Promise<void> {
@@ -64,12 +83,56 @@ function displayText(clip: ClipData): string {
   return clip.content;
 }
 
-// Load and render clips
+function applyFilter(): void {
+  const query = searchInput.value.toLowerCase().trim();
+  filteredClips = query
+    ? clips.filter(c => displayText(c).toLowerCase().includes(query))
+    : clips;
+}
+
+// Load and render clips (respects the active search filter)
 async function loadClips(): Promise<void> {
   const rawClips = await window.ctrlc.getRecentClips();
   clips = rawClips;
-  filteredClips = clips;
+  applyFilter();
   renderClips();
+}
+
+/** Delete the clip at the given filtered index; selection moves to the next
+ *  item (same index, clamped to the new end of the list). */
+async function deleteClipAt(index: number): Promise<void> {
+  const clip = filteredClips[index];
+  if (!clip) return;
+  await window.ctrlc.deleteClip(clip.id);
+  await loadClips();
+  selectedIndex = filteredClips.length === 0
+    ? -1
+    : Math.min(index, filteredClips.length - 1);
+  renderClips();
+}
+
+function openEditor(clip: ClipData): void {
+  if (clip.type === 'image') return; // nothing sensible to edit
+  editingId = clip.id;
+  editTextarea.value = clip.content;
+  editView.classList.remove('hidden');
+  editTextarea.focus();
+}
+
+function closeEditor(): void {
+  editingId = null;
+  editView.classList.add('hidden');
+  searchInput.focus();
+}
+
+async function saveEditor(): Promise<void> {
+  if (editingId === null) return;
+  const content = editTextarea.value;
+  if (content.length > 0) {
+    await window.ctrlc.updateClip(editingId, content);
+  }
+  closeEditor();
+  await loadClips();
 }
 
 function renderClips(): void {
@@ -128,6 +191,20 @@ function renderClips(): void {
       void window.ctrlc.pasteClip(clip.id, isPlainModifier(e));
     });
 
+    // Right-click: Edit / Delete menu
+    item.addEventListener('contextmenu', (e: MouseEvent) => {
+      e.preventDefault();
+      menuIndex = parseInt(item.dataset.index || '0');
+      const isImage = filteredClips[menuIndex]?.type === 'image';
+      menuEdit.classList.toggle('disabled', isImage);
+      contextMenu.classList.remove('hidden');
+      // Clamp so the menu stays inside the popup
+      const mw = contextMenu.offsetWidth;
+      const mh = contextMenu.offsetHeight;
+      contextMenu.style.left = `${Math.min(e.clientX, window.innerWidth - mw - 4)}px`;
+      contextMenu.style.top = `${Math.min(e.clientY, window.innerHeight - mh - 4)}px`;
+    });
+
     clipList.appendChild(item);
   });
 
@@ -142,6 +219,8 @@ function setupEventListeners(): void {
     if (document.visibilityState === 'visible') {
       searchInput.value = '';
       selectedIndex = -1;
+      hideContextMenu();
+      closeEditor();
       void refreshConfig(); // settings may have changed while hidden
       void loadClips();
       searchInput.focus();
@@ -150,25 +229,49 @@ function setupEventListeners(): void {
 
   // Search filtering
   searchInput.addEventListener('input', () => {
-    const query = searchInput.value.toLowerCase().trim();
-    if (!query) {
-      filteredClips = clips;
-    } else {
-      filteredClips = clips.filter(c =>
-        displayText(c).toLowerCase().includes(query)
-      );
-    }
+    applyFilter();
     selectedIndex = -1;
     renderClips();
   });
 
+  // Context menu actions
+  menuDelete.addEventListener('click', () => {
+    const idx = menuIndex;
+    hideContextMenu();
+    void deleteClipAt(idx);
+  });
+  menuEdit.addEventListener('click', () => {
+    if (menuEdit.classList.contains('disabled')) return;
+    const clip = filteredClips[menuIndex];
+    hideContextMenu();
+    if (clip) openEditor(clip);
+  });
+
+  // Menu dismissal: click anywhere else, or the window losing visibility
+  document.addEventListener('click', (e: MouseEvent) => {
+    if (menuVisible() && !contextMenu.contains(e.target as Node)) {
+      hideContextMenu();
+    }
+  });
+  window.addEventListener('blur', hideContextMenu);
+
+  // Editor controls
+  document.getElementById('edit-save')!.addEventListener('click', () => void saveEditor());
+  document.getElementById('edit-cancel')!.addEventListener('click', closeEditor);
+  editTextarea.addEventListener('keydown', (e: KeyboardEvent) => {
+    e.stopPropagation(); // keep list hotkeys (1-5, Enter, Del) out of the editor
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeEditor();
+    } else if (e.key === 'Enter' && e.ctrlKey) {
+      e.preventDefault();
+      void saveEditor();
+    }
+  });
+
   // Keyboard navigation
   document.addEventListener('keydown', (e: KeyboardEvent) => {
-    // Don't handle if typing in search input
-    if (e.target === searchInput) {
-      handleHotkeys(e);
-      return;
-    }
+    if (editingId !== null) return; // editor handles its own keys
     handleHotkeys(e);
   });
 
@@ -177,6 +280,14 @@ function setupEventListeners(): void {
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
+      if (editingId !== null) {
+        closeEditor();
+        return;
+      }
+      if (menuVisible()) {
+        hideContextMenu();
+        return;
+      }
       void window.ctrlc.closePopup();
     }
   });
@@ -225,6 +336,17 @@ function handleHotkeys(e: KeyboardEvent): void {
       void window.ctrlc.copyClip(clip.id).then(() => {
         void window.ctrlc.closePopup();
       });
+    }
+    return;
+  }
+
+  // Delete — remove the selected clip; selection moves to the next item.
+  // When the search box has text, Del keeps its text-editing meaning.
+  if (e.key === 'Delete') {
+    if (e.target === searchInput && searchInput.value.length > 0) return;
+    if (selectedIndex >= 0) {
+      e.preventDefault();
+      void deleteClipAt(selectedIndex);
     }
     return;
   }
