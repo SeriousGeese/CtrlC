@@ -17,6 +17,7 @@ import { ensureKWinHelper, restorePreviousFocus, placePopupAtCursor, placePopupC
 import { htmlToText } from './html-text';
 import { ensureYdotoold, teardownLinuxIntegration } from './linux-setup';
 import { launcherParts } from './exec-info';
+import { ensureWinPasteHelper, captureForegroundWindow, pasteToCapturedWindow, stopWinPasteHelper } from './win-paste';
 
 // Set process name for task managers / ps
 process.title = 'CtrlC';
@@ -253,10 +254,18 @@ function setupIPC(): void {
     }
     // Pasted clip moves to the top of the history (Ditto behavior)
     await touchClipByHash(clip.contentHash);
-    // Hide, explicitly re-activate the pre-popup window (KWin's implicit
-    // focus restore is unreliable and lands in the wrong app), then inject
-    // Ctrl+V once the target has focus.
+    // Hide, explicitly re-activate the pre-popup window (implicit focus
+    // restore is unreliable on both KWin and Windows and lands in the wrong
+    // app — or none), then inject Ctrl+V once the target has focus.
     popupManager?.close();
+    if (process.platform === 'win32') {
+      const pasted = await pasteToCapturedWindow();
+      if (!pasted) {
+        // Helper unavailable — best-effort one-shot fallback
+        setTimeout(() => { void synthesizePaste(); }, 250);
+      }
+      return true;
+    }
     await restorePreviousFocus();
     setTimeout(() => {
       void synthesizePaste();
@@ -319,10 +328,17 @@ if (!isTeardown) void app.whenReady().then(async () => {
   // First-run: make sure ydotoold is available for paste injection
   void ensureYdotoold();
 
+  // Windows: persistent helper that re-activates the pre-popup window and
+  // injects Ctrl+V (no-op elsewhere)
+  ensureWinPasteHelper(getDataDir());
+
   // Show the popup, then (for pointer-anchored modes on KDE Wayland) ask
   // KWin to correct the placement — Electron's cursor position is stale
   // under XWayland whenever the mouse is over a native Wayland window.
   const showPopup = (x: number, y: number): void => {
+    // Remember the paste target before the popup steals focus (win32 no-op
+    // elsewhere; on KDE the KWin helper tracks this continuously)
+    captureForegroundWindow();
     popupManager?.showAt(x, y);
     if (config.popupPosition === 'mouse') {
       void placePopupAtCursor();
@@ -387,6 +403,7 @@ if (!isTeardown) void app.whenReady().then(async () => {
     // Manual cleanup before force-exit — app.quit() stalls because the
     // popup window's close handler preventsDefault() (hides instead of
     // closing). app.exit() skips will-quit events, so clean up here.
+    stopWinPasteHelper();
     hotkeyManager?.destroy();
     settingsManager?.destroy();
     aboutManager?.destroy();
@@ -410,6 +427,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', async () => {
+  stopWinPasteHelper();
   hotkeyManager?.destroy();
   settingsManager?.destroy();
   aboutManager?.destroy();
