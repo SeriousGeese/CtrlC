@@ -34,6 +34,17 @@ async function init(): Promise<void> {
   searchInput.focus();
 }
 
+// What a clip looks like in the list (and what search matches against).
+// HTML clips show their tag-stripped text so entries are distinguishable —
+// the stored content is untouched, so pasting keeps the formatting. To show
+// raw markup again, just return clip.content unconditionally here.
+function displayText(clip: ClipData): string {
+  if (clip.type === 'html') {
+    return stripHtml(clip.content).trim() || clip.content;
+  }
+  return clip.content;
+}
+
 // Load and render clips
 async function loadClips(): Promise<void> {
   const rawClips = await window.ctrlc.getRecentClips();
@@ -77,9 +88,8 @@ function renderClips(): void {
       preview.appendChild(img);
     } else {
       // Truncate long text
-      const text = clip.content.length > 200
-        ? clip.content.substring(0, 200) + '...'
-        : clip.content;
+      const full = displayText(clip);
+      const text = full.length > 200 ? full.substring(0, 200) + '...' : full;
       preview.textContent = text;
     }
 
@@ -124,7 +134,7 @@ function setupEventListeners(): void {
       filteredClips = clips;
     } else {
       filteredClips = clips.filter(c =>
-        c.content.toLowerCase().includes(query)
+        displayText(c).toLowerCase().includes(query)
       );
     }
     selectedIndex = -1;
@@ -241,9 +251,10 @@ function updateSelection(): void {
 }
 
 function stripHtml(html: string): string {
-  const tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  return tmp.textContent || tmp.innerText || '';
+  // DOMParser documents are inert: no script execution and no resource
+  // fetches (clipboard HTML can contain tracking pixels).
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  return doc.body.textContent || '';
 }
 
 // Start

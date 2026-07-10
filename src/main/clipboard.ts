@@ -204,7 +204,6 @@ export class ClipboardCapture {
       // so we try reading each format and fall back to readText()
       const hasHtml = types.some(t => t.startsWith('text/html'));
       const hasImage = types.some(t => t.startsWith('image/'));
-      const hasText = types.some(t => t.startsWith('text/plain') || t.startsWith('UTF8_STRING') || t.startsWith('STRING'));
 
       // Priority order: html > image > text
       if (hasHtml && this.config.saveHtml) {

@@ -24,10 +24,6 @@ export function computePopupPosition(mode: PopupPositionMode): Point {
         return centerOf(screen.getPrimaryDisplay());
       case 'center-current':
         return centerOf(screen.getDisplayNearestPoint(screen.getCursorScreenPoint()));
-      case 'caret':
-        // Caret (text cursor) tracking has no portable Linux API; behave
-        // like 'mouse' until AT-SPI support lands (CtrlC-e9u follow-up).
-        return belowPointer();
       case 'mouse':
       default:
         return belowPointer();
@@ -53,11 +49,10 @@ function belowPointer(): Point {
 }
 
 /**
- * Position the popup just below an arbitrary anchor point (mouse or text
- * caret), clamped to that point's display work area and flipped above the
- * anchor near the bottom edge.
+ * Position the popup just below an anchor point, clamped to that point's
+ * display work area and flipped above the anchor near the bottom edge.
  */
-export function placeBelowPoint(anchor: Point): Point {
+function placeBelowPoint(anchor: Point): Point {
   const area = screen.getDisplayNearestPoint(anchor).workArea;
 
   const x = Math.round(
