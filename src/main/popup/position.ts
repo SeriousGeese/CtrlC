@@ -49,16 +49,24 @@ function centerOf(display: Electron.Display): Point {
 
 /** Just below the pointer; flips above it when too close to the bottom. */
 function belowPointer(): Point {
-  const cursor = screen.getCursorScreenPoint();
-  const area = screen.getDisplayNearestPoint(cursor).workArea;
+  return placeBelowPoint(screen.getCursorScreenPoint());
+}
+
+/**
+ * Position the popup just below an arbitrary anchor point (mouse or text
+ * caret), clamped to that point's display work area and flipped above the
+ * anchor near the bottom edge.
+ */
+export function placeBelowPoint(anchor: Point): Point {
+  const area = screen.getDisplayNearestPoint(anchor).workArea;
 
   const x = Math.round(
-    Math.min(Math.max(cursor.x, area.x), area.x + area.width - POPUP_WIDTH),
+    Math.min(Math.max(anchor.x, area.x), area.x + area.width - POPUP_WIDTH),
   );
 
-  let y = cursor.y + POINTER_GAP;
+  let y = anchor.y + POINTER_GAP;
   if (y + POPUP_HEIGHT > area.y + area.height) {
-    y = cursor.y - POPUP_HEIGHT - POINTER_GAP;
+    y = anchor.y - POPUP_HEIGHT - POINTER_GAP;
   }
   y = Math.round(Math.max(y, area.y));
 

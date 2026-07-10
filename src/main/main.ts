@@ -11,7 +11,8 @@ import { SettingsManager, AboutManager } from './windows';
 import { enableAutoStart, disableAutoStart } from './auto-start';
 import { registerGlobalShortcut } from './desktop-shortcut';
 import { ClipData, AppConfig } from '../shared/types';
-import { computePopupPosition, POPUP_WIDTH, POPUP_HEIGHT } from './popup/position';
+import { computePopupPosition, placeBelowPoint, POPUP_WIDTH, POPUP_HEIGHT } from './popup/position';
+import { CaretTracker } from './caret';
 import { synthesizePaste } from './paste';
 import { ensureKWinHelper, restorePreviousFocus, placePopupAtCursor, placePopupCenterCursorScreen } from './kwin/helper';
 
@@ -36,6 +37,7 @@ let clipboardCapture: ClipboardCapture | null = null;
 let settingsManager: SettingsManager | null = null;
 let aboutManager: AboutManager | null = null;
 let config = loadConfig();
+const caretTracker = new CaretTracker();
 
 // Single-instance lock
 const gotLock = app.requestSingleInstanceLock();
@@ -286,18 +288,35 @@ void app.whenReady().then(async () => {
   // KWin helper: true-cursor popup placement and focus restore on Wayland
   void ensureKWinHelper(getDataDir());
 
-  // Show the popup, then (for pointer-anchored modes on KDE Wayland) ask
-  // KWin to move it to the real cursor — Electron's cursor position is stale
-  // under XWayland whenever the mouse is over a native Wayland window.
+  // Caret tracking (AT-SPI) for the "Cursor" position mode
+  void caretTracker.start();
+
+  // Show the popup, then correct its placement. For "caret", try the text
+  // caret of the focused app first (AT-SPI), falling back to the mouse. For
+  // pointer-anchored modes on KDE Wayland, ask KWin to move it to the real
+  // cursor — Electron's cursor position is stale under XWayland whenever the
+  // mouse is over a native Wayland window.
   const showPopup = (x: number, y: number): void => {
-    popupManager?.showAt(x, y);
-    if (config.popupPosition === 'mouse' || config.popupPosition === 'caret') {
-      void placePopupAtCursor();
-    } else if (config.popupPosition === 'center-current') {
-      void placePopupCenterCursorScreen();
-    }
-    // center-primary needs no correction: the primary display is static and
-    // Electron positions it exactly.
+    void (async () => {
+      if (config.popupPosition === 'caret') {
+        const caret = await caretTracker.getCaretPoint();
+        if (caret) {
+          const pos = placeBelowPoint(caret);
+          console.log(`[Popup] caret placement: caret=(${caret.x},${caret.y}) popup=(${pos.x},${pos.y})`);
+          popupManager?.showAt(pos.x, pos.y);
+          return;
+        }
+        console.log('[Popup] caret unknown — falling back to mouse placement');
+      }
+      popupManager?.showAt(x, y);
+      if (config.popupPosition === 'mouse' || config.popupPosition === 'caret') {
+        void placePopupAtCursor();
+      } else if (config.popupPosition === 'center-current') {
+        void placePopupCenterCursorScreen();
+      }
+      // center-primary needs no correction: the primary display is static
+      // and Electron positions it exactly.
+    })();
   };
 
   // Wire up hotkey → popup
@@ -376,6 +395,7 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', async () => {
+  caretTracker.stop();
   hotkeyManager?.destroy();
   settingsManager?.destroy();
   aboutManager?.destroy();
