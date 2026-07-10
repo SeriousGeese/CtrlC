@@ -396,12 +396,6 @@ if (!isTeardown) void app.whenReady().then(async () => {
     const { x, y } = computePopupPosition(config.popupPosition);
     showPopup(x, y);
   });
-  trayManager.on('copy-last', async () => {
-    const recent = await getRecentClips(1);
-    if (recent.length > 0) {
-      await copyClipToSystem(recent[0]);
-    }
-  });
   trayManager.on('settings', () => {
     settingsManager?.show();
   });

@@ -177,9 +177,9 @@ function renderClips(): void {
 
     item.appendChild(preview);
 
-    // Type badge
+    // Type badge (per-type color: text=green, html=amber, image=magenta)
     const badge = document.createElement('span');
-    badge.className = 'clip-type-badge';
+    badge.className = `clip-type-badge badge-${clip.type}`;
     badge.textContent = clip.type.toUpperCase();
     item.appendChild(badge);
 

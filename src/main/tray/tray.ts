@@ -65,8 +65,6 @@ export class TrayManager extends EventEmitter {
     const contextMenu = Menu.buildFromTemplate([
       { label: 'Show Popup (' + hotkey + ')', click: () => this.emit('show-popup', 0, 0) },
       { type: 'separator' },
-      { label: 'Copy Last Clip', click: () => this.emit('copy-last') },
-      { type: 'separator' },
       { label: 'Settings', click: () => this.emit('settings') },
       { label: 'About CtrlC', click: () => this.emit('about') },
       { type: 'separator' },
