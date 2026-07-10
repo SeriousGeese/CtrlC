@@ -202,6 +202,9 @@ function setupIPC(): void {
     if (response !== 0) return false;
 
     await clearAllClips();
+    // The capture loop's consecutive-duplicate guard must forget the last
+    // hash, or re-copying the most recent content after clearing is skipped.
+    clipboardCapture?.resetDedup();
     // Remove saved image files
     const clipsDir = getClipsDir();
     if (fs.existsSync(clipsDir)) {
@@ -217,6 +220,7 @@ function setupIPC(): void {
   });
   ipcMain.handle('clips:delete', async (_event, id: string) => {
     await deleteClip(id);
+    clipboardCapture?.resetDedup();
     return true;
   });
   ipcMain.handle('clips:copy', async (_event, id: string) => {

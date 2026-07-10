@@ -71,6 +71,16 @@ export class ClipboardCapture {
   }
 
   /**
+   * Forget the last-captured hash. Must be called whenever history rows are
+   * deleted (Clear History, single delete) — otherwise re-copying the most
+   * recently captured content is treated as a repeat clipboard event and
+   * never re-enters the history.
+   */
+  resetDedup(): void {
+    this.lastClipHash = '';
+  }
+
+  /**
    * Watch the Wayland clipboard via `wl-paste --watch`. Returns false when
    * not on Wayland or wl-paste is unavailable (caller falls back to polling).
    */
