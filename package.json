@@ -3,16 +3,42 @@
   "version": "0.1.0",
   "description": "Cross-platform clipboard manager with hotkey-triggered popup",
   "main": "dist/main/main.js",
-  "icon": "assets/tray-icon.png",
   "build": {
     "appId": "dev.seriousgeese.ctrlc",
+    "productName": "CtrlC",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
     "linux": {
-      "icon": "assets/tray-icon.png",
+      "icon": "build-res/icon.png",
       "category": "Utility",
+      "executableName": "ctrlc",
       "target": [
         "AppImage",
         "deb"
+      ],
+      "desktop": {
+        "entry": {
+          "StartupWMClass": "ctrlc"
+        }
+      }
+    },
+    "win": {
+      "icon": "build-res/icon.ico",
+      "target": [
+        "nsis"
       ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false
     }
   },
   "author": "Serious Geese, LLC <https://seriousgeese.dev>",
@@ -22,6 +48,8 @@
     "dev": "npm run build && bash -c 'exec -a CtrlC electron .'",
     "build": "tsc && cp src/renderer/*.html dist/renderer/",
     "build:app": "electron-builder",
+    "build:linux": "npm run build && electron-builder --linux",
+    "build:win": "npm run build && electron-builder --win",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",

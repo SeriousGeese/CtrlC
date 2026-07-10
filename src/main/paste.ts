@@ -34,8 +34,24 @@ export async function synthesizePaste(): Promise<boolean> {
   // Test hook: exercise the full selection flow without injecting keys into
   // whatever window regains focus.
   if (process.env.CTRLC_NO_PASTE_INJECT) return false;
-  if (process.platform === 'win32' || process.platform === 'darwin') {
-    // TODO: SendInput / CGEvent when those platforms are wired up.
+
+  if (process.platform === 'win32') {
+    // WScript.Shell SendKeys — no native module needed. ^v = Ctrl+V.
+    try {
+      await execFileAsync(
+        'powershell',
+        ['-NoProfile', '-NonInteractive', '-Command',
+          '$w = New-Object -ComObject WScript.Shell; $w.SendKeys("^v")'],
+        { timeout: 5000, windowsHide: true },
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  if (process.platform === 'darwin') {
+    // TODO: CGEvent / osascript when macOS is wired up.
     return false;
   }
 

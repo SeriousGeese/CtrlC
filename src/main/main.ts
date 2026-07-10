@@ -15,6 +15,8 @@ import { computePopupPosition, POPUP_WIDTH, POPUP_HEIGHT } from './popup/positio
 import { synthesizePaste } from './paste';
 import { ensureKWinHelper, restorePreviousFocus, placePopupAtCursor, placePopupCenterCursorScreen } from './kwin/helper';
 import { htmlToText } from './html-text';
+import { ensureYdotoold, teardownLinuxIntegration } from './linux-setup';
+import { launcherParts } from './exec-info';
 
 // Set process name for task managers / ps
 process.title = 'CtrlC';
@@ -38,9 +40,19 @@ let settingsManager: SettingsManager | null = null;
 let aboutManager: AboutManager | null = null;
 let config = loadConfig();
 
+// `ctrlc --teardown`: remove everything installed outside the app (DE
+// shortcut, autostart entry, ydotoold unit, KWin helper). Used by
+// uninstallers; runs and exits without starting the app — and must skip the
+// single-instance lock so it works while the app is running.
+const isTeardown = process.argv.includes('--teardown');
+if (isTeardown) {
+  void app.whenReady()
+    .then(() => teardownLinuxIntegration(getDataDir()))
+    .finally(() => app.exit(0));
+}
+
 // Single-instance lock
-const gotLock = app.requestSingleInstanceLock();
-if (!gotLock) {
+if (!isTeardown && !app.requestSingleInstanceLock()) {
   app.quit();
   process.exit(0);
 }
@@ -268,7 +280,7 @@ function setupIPC(): void {
 }
 
 // App lifecycle
-void app.whenReady().then(async () => {
+if (!isTeardown) void app.whenReady().then(async () => {
   ensureDataDir();
 
   // Set DB path
@@ -304,6 +316,9 @@ void app.whenReady().then(async () => {
   // KWin helper: true-cursor popup placement and focus restore on Wayland
   void ensureKWinHelper(getDataDir());
 
+  // First-run: make sure ydotoold is available for paste injection
+  void ensureYdotoold();
+
   // Show the popup, then (for pointer-anchored modes on KDE Wayland) ask
   // KWin to correct the placement — Electron's cursor position is stale
   // under XWayland whenever the mouse is over a native Wayland window.
@@ -330,9 +345,10 @@ void app.whenReady().then(async () => {
   hotkeyManager.on('hotkey-registered', (registered: boolean) => {
     if (registered) return;
     const iconPath = path.join(__dirname, '../../assets/tray-icon.png');
+    const launcher = launcherParts();
     void registerGlobalShortcut({
-      execPath: process.execPath,
-      appPath: app.getAppPath(),
+      execPath: launcher.execPath,
+      appPath: launcher.appPath,
       iconPath,
       hotkey: config.hotkey,
     }).then((result) => {

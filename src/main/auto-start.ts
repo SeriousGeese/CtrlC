@@ -2,15 +2,21 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 import os from 'node:os';
 import { app } from 'electron';
+import { launcherParts } from './exec-info';
 
 const APP_NAME = 'ctrlc';
 const DESKTOP_FILENAME = `${APP_NAME}.desktop`;
 
 /**
  * Enable auto-start on login for the current platform.
- * Creates a .desktop file in the autostart directory on Linux.
+ * Windows/macOS: registered as a login item via Electron.
+ * Linux: a .desktop file in the autostart directory.
  */
 export function enableAutoStart(): void {
+  if (process.platform === 'win32' || process.platform === 'darwin') {
+    app.setLoginItemSettings({ openAtLogin: true, args: ['--silent'] });
+    return;
+  }
   if (process.platform !== 'linux') return;
 
   const autostartDir = path.join(os.homedir(), '.config', 'autostart');
@@ -18,12 +24,8 @@ export function enableAutoStart(): void {
     fs.mkdirSync(autostartDir, { recursive: true, mode: 0o700 });
   }
 
-  // In dev (process.defaultApp), execPath is the bare electron binary and
-  // needs the app path as its first argument; a packaged binary must not
-  // receive it.
-  const executable = process.defaultApp
-    ? `${process.execPath} ${app.getAppPath()}`
-    : process.execPath;
+  const launcher = launcherParts();
+  const executable = [launcher.execPath, launcher.appPath].filter(Boolean).join(' ');
   const desktopPath = path.join(autostartDir, DESKTOP_FILENAME);
   const iconPath = path.join(__dirname, '../../assets/tray-icon.png');
 
@@ -43,9 +45,13 @@ StartupNotify=false
 
 /**
  * Disable auto-start on login.
- * Removes the .desktop file from the autostart directory.
+ * Removes the login item (Windows/macOS) or .desktop file (Linux).
  */
 export function disableAutoStart(): void {
+  if (process.platform === 'win32' || process.platform === 'darwin') {
+    app.setLoginItemSettings({ openAtLogin: false });
+    return;
+  }
   if (process.platform !== 'linux') return;
 
   const autostartDir = path.join(os.homedir(), '.config', 'autostart');
@@ -60,6 +66,9 @@ export function disableAutoStart(): void {
  * Check if auto-start is currently enabled.
  */
 export function isAutoStartEnabled(): boolean {
+  if (process.platform === 'win32' || process.platform === 'darwin') {
+    return app.getLoginItemSettings().openAtLogin;
+  }
   if (process.platform !== 'linux') return false;
 
   const autostartDir = path.join(os.homedir(), '.config', 'autostart');

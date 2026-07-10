@@ -146,12 +146,14 @@ export function buildDesktopLauncher(
   appPath: string,
   iconPath: string,
 ): string {
-  // %u/%f intentionally omitted — we always pass --show-popup.
+  // %u/%f intentionally omitted — we always pass --show-popup. appPath is
+  // empty for packaged builds (the binary is the app).
+  const exec = [execPath, appPath, '--show-popup'].filter(Boolean).join(' ');
   return `[Desktop Entry]
 Type=Application
 Name=CtrlC: Show Popup
 Comment=Open the CtrlC clipboard popup
-Exec=${execPath} ${appPath} --show-popup
+Exec=${exec}
 Icon=${iconPath}
 Terminal=false
 NoDisplay=true
@@ -253,7 +255,7 @@ async function registerGnome(opts: RegisterOptions): Promise<RegisterResult> {
 
   // 2. Configure the binding's name/command/binding on the relocatable schema.
   const schemaPath = `${GNOME_SCHEMA}.custom-keybinding:${dirPath}`;
-  const command = `${opts.execPath} ${opts.appPath} --show-popup`;
+  const command = [opts.execPath, opts.appPath, '--show-popup'].filter(Boolean).join(' ');
   const accel = toGnomeAccelerator(opts.hotkey);
 
   await gsettings(['set', schemaPath, 'name', GNOME_BINDING_NAME]);
