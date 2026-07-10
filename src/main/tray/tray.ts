@@ -1,11 +1,13 @@
-import { Tray, Menu, BrowserWindow, nativeImage } from 'electron';
+import { Tray, Menu, BrowserWindow, nativeImage, shell } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { EventEmitter } from 'node:events';
+import type { UpdateInfo } from '../../shared/types';
 
 export class TrayManager extends EventEmitter {
   private tray: Tray | null = null;
   private configPath: string;
+  private pendingUpdate: UpdateInfo | null = null;
 
   constructor(_mainWindow: BrowserWindow) {
     super();
@@ -39,7 +41,6 @@ export class TrayManager extends EventEmitter {
 
   private shortenHotkey(hotkey: string): string {
     if (!hotkey) return '';
-    // Strip modifier prefix for display — tooltip area is small
     return hotkey
       .replace(/^CommandOrControl\+/g, '')
       .replace(/^Command\+/g, '')
@@ -47,9 +48,46 @@ export class TrayManager extends EventEmitter {
       .replace(/[Bb]ackquote/g, '`');
   }
 
+  setUpdateAvailable(info: UpdateInfo | null): void {
+    this.pendingUpdate = info;
+    this.rebuildMenu();
+  }
+
+  private rebuildMenu(): void {
+    if (!this.tray) return;
+    const hotkey = this.getHotkeyFromConfig();
+
+    type MenuItemTemplate = Parameters<typeof Menu.buildFromTemplate>[0][number];
+    const template: MenuItemTemplate[] = [];
+
+    if (this.pendingUpdate) {
+      template.push({
+        label: `↑ Update available — ${this.pendingUpdate.version}`,
+        click: () => { void shell.openExternal(this.pendingUpdate!.url); },
+      });
+      template.push({ type: 'separator' });
+    }
+
+    template.push(
+      { label: 'Show Popup (' + hotkey + ')', click: () => this.emit('show-popup', 0, 0) },
+      { type: 'separator' },
+      { label: 'Settings', click: () => this.emit('settings') },
+      { label: 'About CtrlC', click: () => this.emit('about') },
+      { type: 'separator' },
+      { label: 'Exit', click: () => this.emit('exit') },
+    );
+
+    const contextMenu = Menu.buildFromTemplate(template);
+    this.tray.setContextMenu(contextMenu);
+    this.tray.setToolTip(
+      this.pendingUpdate
+        ? `CtrlC — Update available ${this.pendingUpdate.version}`
+        : `CtrlC — Clipboard Manager (${hotkey})`,
+    );
+  }
+
   private createTray(): void {
     const iconPath = path.join(__dirname, '../../../assets/tray-icon.png');
-    const hotkey = this.getHotkeyFromConfig();
 
     let icon: import('electron').NativeImage;
     if (fs.existsSync(iconPath)) {
@@ -60,18 +98,7 @@ export class TrayManager extends EventEmitter {
     }
 
     this.tray = new Tray(icon);
-    this.tray.setToolTip('CtrlC — Clipboard Manager (' + hotkey + ')');
-
-    const contextMenu = Menu.buildFromTemplate([
-      { label: 'Show Popup (' + hotkey + ')', click: () => this.emit('show-popup', 0, 0) },
-      { type: 'separator' },
-      { label: 'Settings', click: () => this.emit('settings') },
-      { label: 'About CtrlC', click: () => this.emit('about') },
-      { type: 'separator' },
-      { label: 'Exit', click: () => this.emit('exit') },
-    ]);
-
-    this.tray.setContextMenu(contextMenu);
+    this.rebuildMenu();
 
     // Left-click shows popup
     this.tray.on('click', () => {

@@ -1,9 +1,14 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { AppConfig, ClipData } from '../shared/types';
+import { AppConfig, ClipData, UpdateInfo } from '../shared/types';
 
 contextBridge.exposeInMainWorld('ctrlc', {
   // App
   getVersion: () => ipcRenderer.invoke('app:version'),
+  getUpdateInfo: (): Promise<UpdateInfo | null> => ipcRenderer.invoke('app:get-update'),
+  openUpdatePage: (): Promise<void> => ipcRenderer.invoke('app:open-update'),
+  onUpdateAvailable: (cb: (info: UpdateInfo) => void): void => {
+    ipcRenderer.on('update:available', (_event, info: UpdateInfo) => cb(info));
+  },
 
   // Config
   getConfig: () => ipcRenderer.invoke('config:get'),
@@ -33,6 +38,9 @@ declare global {
   interface Window {
     ctrlc: {
       getVersion: () => Promise<string>;
+      getUpdateInfo: () => Promise<UpdateInfo | null>;
+      openUpdatePage: () => Promise<void>;
+      onUpdateAvailable: (cb: (info: UpdateInfo) => void) => void;
       getConfig: () => Promise<AppConfig>;
       updateConfig: (updates: Partial<AppConfig>) => Promise<AppConfig>;
       getRecentClips: () => Promise<ClipData[]>;

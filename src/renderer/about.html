@@ -71,6 +71,47 @@
       color: #00ff00;
       text-decoration: underline;
     }
+
+    /* Update banner — amber to match the HTML badge color family */
+    .update-banner {
+      margin-top: 16px;
+      padding: 10px 14px;
+      border: 1px solid rgba(255, 176, 0, 0.35);
+      border-radius: 4px;
+      background: rgba(255, 176, 0, 0.07);
+    }
+
+    .update-banner.hidden { display: none; }
+
+    .update-label {
+      font-size: 11px;
+      color: rgba(255, 191, 0, 0.85);
+      margin-bottom: 8px;
+    }
+
+    .update-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .update-btn {
+      background: rgba(255, 176, 0, 0.1);
+      border: 1px solid rgba(255, 176, 0, 0.35);
+      border-radius: 3px;
+      color: rgba(255, 191, 0, 0.9);
+      font-family: inherit;
+      font-size: 11px;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .update-btn:hover {
+      background: rgba(255, 176, 0, 0.2);
+      border-color: rgba(255, 176, 0, 0.6);
+    }
   </style>
 </head>
 <body>
@@ -86,12 +127,52 @@
       <a href="https://seriousgeese.dev" target="_blank">Serious Geese, LLC</a><br>
       MIT License
     </div>
+
+    <div class="update-banner hidden" id="update-banner">
+      <div class="update-label" id="update-label"></div>
+      <div class="update-actions">
+        <button class="update-btn" id="winget-btn" style="display:none">Copy winget command</button>
+        <button class="update-btn" id="releases-btn">GitHub Releases</button>
+      </div>
+    </div>
   </div>
+
   <script>
-    // Version comes from the app (package.json via app.getVersion()) so it
-    // can never drift from the release again.
     window.ctrlc.getVersion().then((v) => {
       document.getElementById('version').textContent = 'v' + v;
+    });
+
+    const isWindows = navigator.platform.toLowerCase().includes('win');
+
+    function showUpdate(info) {
+      document.getElementById('update-label').textContent =
+        info.version + ' is available';
+      if (isWindows) {
+        document.getElementById('winget-btn').style.display = '';
+      }
+      document.getElementById('update-banner').classList.remove('hidden');
+    }
+
+    document.getElementById('winget-btn').addEventListener('click', () => {
+      const btn = document.getElementById('winget-btn');
+      navigator.clipboard.writeText('winget upgrade CtrlC').then(() => {
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy winget command'; }, 2000);
+      }).catch(() => {
+        btn.textContent = 'winget upgrade CtrlC';
+      });
+    });
+
+    document.getElementById('releases-btn').addEventListener('click', () => {
+      window.ctrlc.openUpdatePage();
+    });
+
+    window.ctrlc.getUpdateInfo().then((info) => {
+      if (info) showUpdate(info);
+    });
+
+    window.ctrlc.onUpdateAvailable((info) => {
+      showUpdate(info);
     });
   </script>
 </body>

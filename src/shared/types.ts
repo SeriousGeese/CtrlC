@@ -51,6 +51,12 @@ export const DEFAULT_CONFIG: AppConfig = {
   plainPasteModifier: 'ctrl',
 };
 
+export interface UpdateInfo {
+  version: string;     // e.g. "v0.2.0"
+  url: string;         // GitHub release HTML URL
+  publishedAt: string; // ISO 8601
+}
+
 // Tray menu item definitions
 export interface TrayMenuItem {
   label: string;

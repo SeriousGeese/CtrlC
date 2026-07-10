@@ -244,9 +244,37 @@
     .footer {
       padding: 10px 16px;
       border-top: 1px solid rgba(0, 255, 0, 0.1);
-      text-align: right;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       font-size: 10px;
       color: rgba(0, 255, 0, 0.3);
+    }
+
+    .update-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: rgba(255, 191, 0, 0.8);
+    }
+
+    .update-info.hidden { display: none; }
+
+    .update-btn {
+      background: rgba(255, 176, 0, 0.1);
+      border: 1px solid rgba(255, 176, 0, 0.35);
+      border-radius: 3px;
+      color: rgba(255, 191, 0, 0.9);
+      font-family: inherit;
+      font-size: 10px;
+      padding: 2px 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .update-btn:hover {
+      background: rgba(255, 176, 0, 0.2);
+      border-color: rgba(255, 176, 0, 0.6);
     }
   </style>
 </head>
@@ -339,7 +367,14 @@
     </div>
   </div>
 
-  <div class="footer">CtrlC — Cross-platform clipboard manager</div>
+  <div class="footer">
+    <span>CtrlC — Cross-platform clipboard manager</span>
+    <span class="update-info hidden" id="update-info">
+      <span id="update-version-text"></span>
+      <button class="update-btn" id="winget-btn" style="display:none">winget upgrade</button>
+      <button class="update-btn" id="releases-btn">GitHub Releases</button>
+    </span>
+  </div>
 
   <script>
     let currentConfig = null;
@@ -545,6 +580,37 @@
 
       const key = parts.join('+') + '+' + keyName;
       registerHotkey(key);
+    });
+
+    // Update checker
+    const isWindows = navigator.platform.toLowerCase().includes('win');
+
+    function showUpdateSettings(info) {
+      document.getElementById('update-version-text').textContent =
+        '↑ ' + info.version + ' available';
+      const wingetBtn = document.getElementById('winget-btn');
+      if (isWindows) wingetBtn.style.display = '';
+      document.getElementById('update-info').classList.remove('hidden');
+    }
+
+    document.getElementById('winget-btn').addEventListener('click', () => {
+      const btn = document.getElementById('winget-btn');
+      navigator.clipboard.writeText('winget upgrade CtrlC').then(() => {
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'winget upgrade'; }, 2000);
+      }).catch(() => {});
+    });
+
+    document.getElementById('releases-btn').addEventListener('click', () => {
+      window.ctrlc.openUpdatePage();
+    });
+
+    window.ctrlc.getUpdateInfo().then((info) => {
+      if (info) showUpdateSettings(info);
+    });
+
+    window.ctrlc.onUpdateAvailable((info) => {
+      showUpdateSettings(info);
     });
 
     loadSettings();

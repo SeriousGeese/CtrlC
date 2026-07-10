@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, clipboard, Menu, nativeImage, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, clipboard, Menu, nativeImage, dialog, shell } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { loadConfig, saveConfig, getDataDir, getClipsDir } from './config';
@@ -18,6 +18,8 @@ import { htmlToText } from './html-text';
 import { ensureYdotoold, teardownLinuxIntegration } from './linux-setup';
 import { launcherParts } from './exec-info';
 import { ensureWinPasteHelper, captureForegroundWindow, pasteToCapturedWindow, stopWinPasteHelper } from './win-paste';
+import { startUpdatePoller } from './update-checker';
+import type { UpdateInfo } from '../shared/types';
 
 // Set process name for task managers / ps
 process.title = 'CtrlC';
@@ -32,6 +34,7 @@ process.title = 'CtrlC';
 // clipboard.ts) and global hotkeys are registered with the desktop
 // environment (see hotkey.ts / desktop-shortcut.ts).
 
+let latestUpdate: UpdateInfo | null = null;
 let mainWindow: BrowserWindow | null = null;
 let trayManager: TrayManager | null = null;
 let hotkeyManager: HotkeyManager | null = null;
@@ -154,6 +157,10 @@ async function copyClipToSystem(clip: ClipData): Promise<boolean> {
 function setupIPC(): void {
   // App
   ipcMain.handle('app:version', () => app.getVersion());
+  ipcMain.handle('app:get-update', () => latestUpdate);
+  ipcMain.handle('app:open-update', () => {
+    if (latestUpdate) void shell.openExternal(latestUpdate.url);
+  });
 
   // Config
   ipcMain.handle('config:get', () => config);
@@ -340,6 +347,16 @@ if (!isTeardown) void app.whenReady().then(async () => {
   // Windows: persistent helper that re-activates the pre-popup window and
   // injects Ctrl+V (no-op elsewhere)
   ensureWinPasteHelper(getDataDir());
+
+  // Update checker: poll GitHub releases API on startup (delayed) and every 24h.
+  // When a newer release is found, update the tray and push to all open renderer windows.
+  startUpdatePoller((info: UpdateInfo) => {
+    latestUpdate = info;
+    trayManager?.setUpdateAvailable(info);
+    BrowserWindow.getAllWindows().forEach(w => {
+      w.webContents.send('update:available', info);
+    });
+  });
 
   // Show the popup, then (for pointer-anchored modes on KDE Wayland) ask
   // KWin to correct the placement — Electron's cursor position is stale
