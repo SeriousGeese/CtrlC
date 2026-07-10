@@ -82,7 +82,7 @@
 <body>
   <div class="about-box">
     <div class="logo">CtrlC</div>
-    <div class="version">v0.1.0</div>
+    <div class="version" id="version"></div>
     <div class="description">
       Cross-platform clipboard manager<br>
       for Linux, Windows, and macOS
@@ -96,5 +96,12 @@
       MIT License
     </div>
   </div>
+  <script>
+    // Version comes from the app (package.json via app.getVersion()) so it
+    // can never drift from the release again.
+    window.ctrlc.getVersion().then((v) => {
+      document.getElementById('version').textContent = 'v' + v;
+    });
+  </script>
 </body>
 </html>

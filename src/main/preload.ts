@@ -2,6 +2,9 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { AppConfig, ClipData } from '../shared/types';
 
 contextBridge.exposeInMainWorld('ctrlc', {
+  // App
+  getVersion: () => ipcRenderer.invoke('app:version'),
+
   // Config
   getConfig: () => ipcRenderer.invoke('config:get'),
   updateConfig: (updates: Partial<AppConfig>) =>
@@ -28,6 +31,7 @@ contextBridge.exposeInMainWorld('ctrlc', {
 declare global {
   interface Window {
     ctrlc: {
+      getVersion: () => Promise<string>;
       getConfig: () => Promise<AppConfig>;
       updateConfig: (updates: Partial<AppConfig>) => Promise<AppConfig>;
       getRecentClips: () => Promise<ClipData[]>;

@@ -152,6 +152,9 @@ async function copyClipToSystem(clip: ClipData): Promise<boolean> {
 
 // IPC handlers
 function setupIPC(): void {
+  // App
+  ipcMain.handle('app:version', () => app.getVersion());
+
   // Config
   ipcMain.handle('config:get', () => config);
   ipcMain.handle('config:update', async (_event, updates: Partial<AppConfig>) => {
