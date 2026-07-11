@@ -118,10 +118,12 @@ export class ClipboardCapture {
     watcher.on('exit', (code) => {
       this.waylandWatcher = null;
       if (this.isCapturing) {
+        // Start the fallback before logging: a throwing console.warn (dead
+        // stdout) must not leave capture stopped.
+        this.startPolling();
         console.warn(
           `[ClipboardCapture] wl-paste watcher exited (code ${code}) — falling back to polling.`,
         );
-        this.startPolling();
       }
     });
 

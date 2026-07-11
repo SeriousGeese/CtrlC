@@ -24,6 +24,13 @@ import type { UpdateInfo } from '../shared/types';
 // Set process name for task managers / ps
 process.title = 'CtrlC';
 
+// If the launching terminal closes (or its pty vanishes across
+// suspend/logout), stdout/stderr become dead sockets and every console.*
+// write emits EIO/EPIPE on the stream — an uncaught main-process exception
+// unless someone listens. Logging is best-effort; swallow write errors.
+process.stdout.on('error', () => {});
+process.stderr.on('error', () => {});
+
 // NOTE: This project is pinned to Electron 33. Electron 42 displays no
 // windows at all on KDE Wayland (Bazzite) under either the native Wayland
 // backend (surfaces render internally but are never composited) or forced
