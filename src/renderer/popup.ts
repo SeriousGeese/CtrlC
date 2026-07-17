@@ -222,7 +222,9 @@ function setupEventListeners(): void {
       hideContextMenu();
       closeEditor();
       void refreshConfig(); // settings may have changed while hidden
-      void loadClips();
+      // Reset the scroll to the top after the list re-renders — otherwise
+      // Chromium's scroll anchoring restores wherever the user last scrolled.
+      void loadClips().then(() => { clipList.scrollTop = 0; });
       searchInput.focus();
     }
   });
