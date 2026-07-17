@@ -52,7 +52,21 @@ All clips are stored in `~/.CtrlC/` with:
 Global hotkeys require a native sidecar binary on Wayland. The `electron-global-hotkey` module handles this, but some compositors may need additional configuration.
 
 ### macOS
-First launch requires Accessibility and Clipboard permissions in System Settings.
+Download the `.dmg` (or `.zip`) for your architecture from the
+[latest release](https://github.com/SeriousGeese/CtrlC/releases/latest) —
+`arm64` for Apple Silicon, `x64` for Intel.
+
+Builds are **unsigned** (no Apple Developer ID), so Gatekeeper blocks the first
+launch. Either right-click the app and choose **Open**, or clear the quarantine
+attribute:
+
+```bash
+xattr -cr /Applications/CtrlC.app
+```
+
+Auto-paste (Cmd+V into the focused app) requires Accessibility permission:
+**System Settings > Privacy & Security > Accessibility**. Without it, the
+selected clip is still placed on the clipboard for manual paste.
 
 ## License
 

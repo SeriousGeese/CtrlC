@@ -1,6 +1,6 @@
 {
   "name": "ctrlc",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Cross-platform clipboard manager with hotkey-triggered popup",
   "main": "dist/main/main.js",
   "build": {
@@ -35,6 +35,26 @@
         "nsis"
       ]
     },
+    "mac": {
+      "icon": "build-res/icon.png",
+      "category": "public.app-category.utilities",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ]
+    },
     "nsis": {
       "oneClick": true,
       "perMachine": false,
@@ -50,6 +70,7 @@
     "build:app": "electron-builder",
     "build:linux": "npm run build && electron-builder --linux",
     "build:win": "npm run build && electron-builder --win",
+    "build:mac": "npm run build && electron-builder --mac",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",

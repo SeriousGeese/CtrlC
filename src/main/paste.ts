@@ -51,8 +51,28 @@ export async function synthesizePaste(): Promise<boolean> {
   }
 
   if (process.platform === 'darwin') {
-    // TODO: CGEvent / osascript when macOS is wired up.
-    return false;
+    // System Events keystroke = Cmd+V into the frontmost app. Requires the
+    // user to grant CtrlC Accessibility permission (System Settings >
+    // Privacy & Security > Accessibility); without it osascript errors and we
+    // fall through to the manual-paste warning below.
+    try {
+      await execFileAsync(
+        'osascript',
+        ['-e', 'tell application "System Events" to keystroke "v" using command down'],
+        { timeout: 5000 },
+      );
+      return true;
+    } catch {
+      if (!warnedNoTool) {
+        warnedNoTool = true;
+        console.warn(
+          '[Paste] Could not synthesize Cmd+V. Grant CtrlC Accessibility ' +
+            'permission (System Settings > Privacy & Security > Accessibility) ' +
+            'to enable auto-paste. The clip is on the clipboard — paste manually.',
+        );
+      }
+      return false;
+    }
   }
 
   try {
