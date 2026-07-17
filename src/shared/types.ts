@@ -57,6 +57,14 @@ export interface UpdateInfo {
   publishedAt: string; // ISO 8601
 }
 
+// Result of an on-demand "Check for updates" — distinguishes up-to-date from a
+// failed check so the UI can show a meaningful message (the background poller
+// only cares about the 'available' case).
+export type UpdateCheckResult =
+  | { status: 'available'; info: UpdateInfo }
+  | { status: 'current'; version: string }
+  | { status: 'error' };
+
 // Tray menu item definitions
 export interface TrayMenuItem {
   label: string;

@@ -72,6 +72,18 @@
       text-decoration: underline;
     }
 
+    /* Inline links that stay indistinguishable from surrounding text until
+       hovered, then just underline (no color change) — per design. */
+    .link {
+      color: inherit;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .link:hover {
+      text-decoration: underline;
+    }
+
     /* Update banner — amber to match the HTML badge color family */
     .update-banner {
       margin-top: 16px;
@@ -117,7 +129,7 @@
 <body>
   <div class="about-box">
     <div class="logo">CtrlC</div>
-    <div class="version" id="version"></div>
+    <div class="version"><span class="link" id="version" title="View on GitHub"></span></div>
     <div class="description">
       Cross-platform clipboard manager<br>
       for Linux, Windows, and macOS
@@ -125,7 +137,7 @@
     <img class="sg-logo" src="../../assets/seriousgeese-logo.jpg" alt="Serious Geese">
     <div class="brand">
       <a href="https://seriousgeese.dev" target="_blank">Serious Geese, LLC</a><br>
-      MIT License
+      <span class="link" id="license-link" title="View the license on GitHub">MIT License</span>
     </div>
 
     <div class="update-banner hidden" id="update-banner">
@@ -138,8 +150,18 @@
   </div>
 
   <script>
+    const REPO_URL = 'https://github.com/SeriousGeese/CtrlC';
+
     window.ctrlc.getVersion().then((v) => {
       document.getElementById('version').textContent = 'v' + v;
+    });
+
+    document.getElementById('version').addEventListener('click', () => {
+      window.ctrlc.openExternal(REPO_URL);
+    });
+
+    document.getElementById('license-link').addEventListener('click', () => {
+      window.ctrlc.openExternal(REPO_URL + '/blob/main/LICENSE');
     });
 
     const isWindows = navigator.platform.toLowerCase().includes('win');

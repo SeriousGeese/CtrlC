@@ -71,8 +71,26 @@ export function getRecentClips(limit: number): Promise<ClipData[]> {
   ) as Promise<ClipData[]>;
 }
 
-export function deleteClip(id: string): Promise<void> {
-  return db!.run('DELETE FROM clips WHERE id = ?', id).then(() => {});
+/** Best-effort delete of the on-disk files backing the given image clip rows. */
+function removeClipFiles(rows: { content: string }[]): void {
+  for (const { content } of rows) {
+    if (!content) continue;
+    try {
+      fs.rmSync(content, { force: true });
+    } catch {
+      // best-effort — a missing/locked file must not block the row deletion
+    }
+  }
+}
+
+export async function deleteClip(id: string): Promise<void> {
+  // Drop the backing PNG too, or deleting an image clip leaks its file.
+  const row = await db!.get(
+    "SELECT content FROM clips WHERE id = ? AND clip_type = 'image'",
+    id,
+  ) as { content: string } | undefined;
+  if (row) removeClipFiles([row]);
+  await db!.run('DELETE FROM clips WHERE id = ?', id);
 }
 
 /**
@@ -122,7 +140,45 @@ export function clearAllClips(): Promise<void> {
   return db!.run('DELETE FROM clips').then(() => {});
 }
 
-export function cleanExpiredClips(days: number): Promise<void> {
+export async function cleanExpiredClips(days: number): Promise<void> {
   const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-  return db!.run('DELETE FROM clips WHERE created_at < ?', cutoff).then(() => {});
+  // Delete the on-disk image files for expired clips before dropping the rows.
+  // Cleaning only the DB left the PNGs in Clips/ to pile up forever, so the
+  // retention policy never actually reclaimed their disk space.
+  const expired = await db!.all(
+    "SELECT content FROM clips WHERE created_at < ? AND clip_type = 'image'",
+    cutoff,
+  ) as { content: string }[];
+  removeClipFiles(expired);
+  await db!.run('DELETE FROM clips WHERE created_at < ?', cutoff);
+}
+
+/**
+ * Delete image files in `clipsDir` that no clip row references — screenshots
+ * orphaned by older builds (which deleted rows but never their PNGs) plus any
+ * other strays. Skips files written in the last minute to avoid racing an
+ * in-flight capture that saved its PNG just before inserting the row. Returns
+ * the number of files removed.
+ */
+export async function pruneOrphanClipFiles(clipsDir: string): Promise<number> {
+  if (!fs.existsSync(clipsDir)) return 0;
+  const rows = await db!.all(
+    "SELECT content FROM clips WHERE clip_type = 'image'",
+  ) as { content: string }[];
+  const referenced = new Set(rows.map(r => path.basename(r.content)));
+  const graceMs = 60_000;
+  const now = Date.now();
+  let removed = 0;
+  for (const name of fs.readdirSync(clipsDir)) {
+    if (referenced.has(name)) continue;
+    const full = path.join(clipsDir, name);
+    try {
+      if (now - fs.statSync(full).mtimeMs < graceMs) continue;
+      fs.rmSync(full, { force: true });
+      removed++;
+    } catch {
+      // best-effort — skip files we can't stat or remove
+    }
+  }
+  return removed;
 }

@@ -1,11 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { AppConfig, ClipData, UpdateInfo } from '../shared/types';
+import { AppConfig, ClipData, UpdateInfo, UpdateCheckResult } from '../shared/types';
 
 contextBridge.exposeInMainWorld('ctrlc', {
   // App
   getVersion: () => ipcRenderer.invoke('app:version'),
   getUpdateInfo: (): Promise<UpdateInfo | null> => ipcRenderer.invoke('app:get-update'),
+  checkForUpdates: (): Promise<UpdateCheckResult> => ipcRenderer.invoke('app:check-update'),
   openUpdatePage: (): Promise<void> => ipcRenderer.invoke('app:open-update'),
+  openExternal: (url: string): Promise<void> => ipcRenderer.invoke('app:open-external', url),
   onUpdateAvailable: (cb: (info: UpdateInfo) => void): void => {
     ipcRenderer.on('update:available', (_event, info: UpdateInfo) => cb(info));
   },
@@ -39,7 +41,9 @@ declare global {
     ctrlc: {
       getVersion: () => Promise<string>;
       getUpdateInfo: () => Promise<UpdateInfo | null>;
+      checkForUpdates: () => Promise<UpdateCheckResult>;
       openUpdatePage: () => Promise<void>;
+      openExternal: (url: string) => Promise<void>;
       onUpdateAvailable: (cb: (info: UpdateInfo) => void) => void;
       getConfig: () => Promise<AppConfig>;
       updateConfig: (updates: Partial<AppConfig>) => Promise<AppConfig>;

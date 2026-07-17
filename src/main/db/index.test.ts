@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 
-import { setDbPath, initDB, closeDB, insertClip, getRecentClips, deleteClip, updateClipContent, cleanExpiredClips, clearAllClips, clipExistsByHash, touchClipByHash } from './index';
+import { setDbPath, initDB, closeDB, insertClip, getRecentClips, deleteClip, updateClipContent, cleanExpiredClips, clearAllClips, clipExistsByHash, touchClipByHash, pruneOrphanClipFiles } from './index';
 
 describe('DB module', () => {
   const tmpDir = path.join(os.tmpdir(), `ctrlc-db-test-${Date.now()}`);
@@ -215,8 +215,94 @@ describe('DB module', () => {
       const recent = await getRecentClips(10);
       expect(recent.length).toBe(0);
     });
+
+    it('deletes the backing image file for expired image clips', async () => {
+      const filePath = path.join(tmpDir, 'expired.png');
+      fs.writeFileSync(filePath, 'png-bytes');
+      const clip = await insertClip(filePath, 'image', 'image');
+      await backdate(dbFile, clip.id, 100);
+
+      await cleanExpiredClips(30);
+
+      expect(await getRecentClips(10)).toHaveLength(0);
+      expect(fs.existsSync(filePath)).toBe(false); // file cleaned, not leaked
+    });
+
+    it('keeps the image file for clips still within retention', async () => {
+      const filePath = path.join(tmpDir, 'fresh.png');
+      fs.writeFileSync(filePath, 'png-bytes');
+      await insertClip(filePath, 'image', 'image');
+
+      await cleanExpiredClips(30);
+
+      expect(fs.existsSync(filePath)).toBe(true);
+    });
+  });
+
+  describe('deleteClip (image files)', () => {
+    it('removes the backing image file', async () => {
+      const filePath = path.join(tmpDir, 'del.png');
+      fs.writeFileSync(filePath, 'png-bytes');
+      const clip = await insertClip(filePath, 'image', 'image');
+
+      await deleteClip(clip.id);
+
+      expect(fs.existsSync(filePath)).toBe(false);
+    });
+  });
+
+  describe('pruneOrphanClipFiles', () => {
+    it('removes unreferenced files but keeps referenced ones', async () => {
+      const clipsDir = path.join(tmpDir, 'Clips');
+      fs.mkdirSync(clipsDir, { recursive: true });
+
+      const referenced = path.join(clipsDir, 'keep.png');
+      const orphan = path.join(clipsDir, 'orphan.png');
+      fs.writeFileSync(referenced, 'x');
+      fs.writeFileSync(orphan, 'x');
+      // Backdate both past the 60s grace window so they're eligible.
+      const old = new Date(Date.now() - 5 * 60 * 1000);
+      fs.utimesSync(referenced, old, old);
+      fs.utimesSync(orphan, old, old);
+
+      await insertClip(referenced, 'image', 'image');
+
+      const removed = await pruneOrphanClipFiles(clipsDir);
+
+      expect(removed).toBe(1);
+      expect(fs.existsSync(referenced)).toBe(true);
+      expect(fs.existsSync(orphan)).toBe(false);
+    });
+
+    it('skips recently written files (in-flight capture grace window)', async () => {
+      const clipsDir = path.join(tmpDir, 'Clips');
+      fs.mkdirSync(clipsDir, { recursive: true });
+      const recent = path.join(clipsDir, 'recent.png');
+      fs.writeFileSync(recent, 'x'); // mtime = now
+
+      const removed = await pruneOrphanClipFiles(clipsDir);
+
+      expect(removed).toBe(0);
+      expect(fs.existsSync(recent)).toBe(true);
+    });
+
+    it('returns 0 when the clips dir does not exist', async () => {
+      expect(await pruneOrphanClipFiles(path.join(tmpDir, 'missing'))).toBe(0);
+    });
   });
 });
+
+async function backdate(dbFile: string, id: string, daysAgo: number): Promise<void> {
+  const sqlite = await import('sqlite');
+  const sqlite3 = (await import('sqlite3')).default as any;
+  const testDb = await sqlite.open({ filename: dbFile, driver: sqlite3.Database });
+  await testDb.run(
+    'UPDATE clips SET created_at = ? WHERE id = ?',
+    Date.now() - daysAgo * 24 * 60 * 60 * 1000,
+    id,
+  );
+  await testDb.close();
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise(r => setTimeout(r, ms));

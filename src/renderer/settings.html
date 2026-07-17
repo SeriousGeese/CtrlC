@@ -260,6 +260,18 @@
 
     .update-info.hidden { display: none; }
 
+    .update-check {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    #update-status {
+      font-size: 10px;
+      color: rgba(0, 255, 0, 0.45);
+    }
+
     .update-btn {
       background: rgba(255, 176, 0, 0.1);
       border: 1px solid rgba(255, 176, 0, 0.35);
@@ -373,6 +385,10 @@
       <span id="update-version-text"></span>
       <button class="update-btn" id="winget-btn" style="display:none">winget upgrade</button>
       <button class="update-btn" id="releases-btn">GitHub Releases</button>
+    </span>
+    <span class="update-check">
+      <span id="update-status"></span>
+      <button class="update-btn" id="check-update-btn">Check for updates</button>
     </span>
   </div>
 
@@ -603,6 +619,28 @@
 
     document.getElementById('releases-btn').addEventListener('click', () => {
       window.ctrlc.openUpdatePage();
+    });
+
+    const checkBtn = document.getElementById('check-update-btn');
+    const statusEl = document.getElementById('update-status');
+    checkBtn.addEventListener('click', async () => {
+      checkBtn.disabled = true;
+      statusEl.textContent = 'Checking…';
+      try {
+        const result = await window.ctrlc.checkForUpdates();
+        if (result.status === 'available') {
+          statusEl.textContent = '';
+          showUpdateSettings(result.info);
+        } else if (result.status === 'current') {
+          statusEl.textContent = 'Up to date (v' + result.version + ')';
+        } else {
+          statusEl.textContent = 'Check failed — try again later';
+        }
+      } catch {
+        statusEl.textContent = 'Check failed — try again later';
+      } finally {
+        checkBtn.disabled = false;
+      }
     });
 
     window.ctrlc.getUpdateInfo().then((info) => {

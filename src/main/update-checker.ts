@@ -1,5 +1,5 @@
 import { app } from 'electron';
-import type { UpdateInfo } from '../shared/types';
+import type { UpdateInfo, UpdateCheckResult } from '../shared/types';
 
 const REPO = 'SeriousGeese/CtrlC';
 const API_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
@@ -18,12 +18,21 @@ function isNewer(latest: string, current: string): boolean {
   return lc > cc;
 }
 
-export async function checkForUpdates(): Promise<UpdateInfo | null> {
+/**
+ * Query the GitHub releases API and classify the result: an available update,
+ * already up to date, or a failed check (network/API error). Powers both the
+ * background poller and the on-demand "Check for updates" button.
+ */
+export async function checkForUpdatesDetailed(): Promise<UpdateCheckResult> {
+  const current = app.getVersion();
   try {
     const res = await fetch(API_URL, {
-      headers: { 'User-Agent': `CtrlC/${app.getVersion()}` },
+      headers: { 'User-Agent': `CtrlC/${current}` },
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`[Update] GitHub API returned ${res.status} ${res.statusText}`);
+      return { status: 'error' };
+    }
     const data = await res.json() as {
       tag_name: string;
       html_url: string;
@@ -31,16 +40,25 @@ export async function checkForUpdates(): Promise<UpdateInfo | null> {
       draft: boolean;
       prerelease: boolean;
     };
-    if (data.draft || data.prerelease) return null;
-    if (!isNewer(data.tag_name, app.getVersion())) return null;
+    if (data.draft || data.prerelease) return { status: 'current', version: current };
+    if (!isNewer(data.tag_name, current)) return { status: 'current', version: current };
     return {
-      version: data.tag_name,
-      url: data.html_url,
-      publishedAt: data.published_at,
+      status: 'available',
+      info: {
+        version: data.tag_name,
+        url: data.html_url,
+        publishedAt: data.published_at,
+      },
     };
-  } catch {
-    return null;
+  } catch (err) {
+    console.warn('[Update] check failed:', (err as Error).message);
+    return { status: 'error' };
   }
+}
+
+export async function checkForUpdates(): Promise<UpdateInfo | null> {
+  const result = await checkForUpdatesDetailed();
+  return result.status === 'available' ? result.info : null;
 }
 
 export function startUpdatePoller(onUpdate: (info: UpdateInfo) => void): void {

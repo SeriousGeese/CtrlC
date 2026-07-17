@@ -1,7 +1,16 @@
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow, ipcMain, shell } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { centerOnPrimary } from './popup/position';
+
+// Route target="_blank" / window.open links to the user's default browser
+// instead of spawning a bare Electron window.
+function openLinksExternally(win: BrowserWindow): void {
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//.test(url)) void shell.openExternal(url);
+    return { action: 'deny' };
+  });
+}
 
 // Dialogs always open centered on the primary monitor. The position is set
 // both in the constructor and re-asserted after the window maps — the window
@@ -48,6 +57,7 @@ export class SettingsManager {
       this.window.setIcon(iconPath);
     }
 
+    openLinksExternally(this.window);
     void this.window.loadFile(path.join(__dirname, '../renderer/settings.html'));
 
     this.window.on('closed', () => {
@@ -95,6 +105,7 @@ export class AboutManager {
     });
     centerWindowOnPrimary(this.window, 380, 440);
 
+    openLinksExternally(this.window);
     void this.window.loadFile(path.join(__dirname, '../renderer/about.html'));
 
     this.window.on('closed', () => {

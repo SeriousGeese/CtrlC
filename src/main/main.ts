@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, clipboard, Menu, nativeImage, dialog, shel
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { loadConfig, saveConfig, getDataDir, getClipsDir } from './config';
-import { initDB, getRecentClips, deleteClip, updateClipContent, cleanExpiredClips, clearAllClips, touchClipByHash, setDbPath, closeDB } from './db';
+import { initDB, getRecentClips, deleteClip, updateClipContent, cleanExpiredClips, clearAllClips, pruneOrphanClipFiles, touchClipByHash, setDbPath, closeDB } from './db';
 import { TrayManager } from './tray/tray';
 import { HotkeyManager } from './hotkey/hotkey';
 import { PopupManager } from './popup/popup';
@@ -18,8 +18,8 @@ import { htmlToText } from './html-text';
 import { ensureYdotoold, teardownLinuxIntegration } from './linux-setup';
 import { launcherParts } from './exec-info';
 import { ensureWinPasteHelper, captureForegroundWindow, pasteToCapturedWindow, stopWinPasteHelper } from './win-paste';
-import { startUpdatePoller } from './update-checker';
-import type { UpdateInfo } from '../shared/types';
+import { startUpdatePoller, checkForUpdatesDetailed } from './update-checker';
+import type { UpdateInfo, UpdateCheckResult } from '../shared/types';
 
 // Set process name for task managers / ps
 process.title = 'CtrlC';
@@ -160,6 +160,16 @@ async function copyClipToSystem(clip: ClipData): Promise<boolean> {
   return true;
 }
 
+// Record a newer release and surface it everywhere: tray badge + all open
+// renderer windows. Shared by the background poller and the on-demand check.
+function announceUpdate(info: UpdateInfo): void {
+  latestUpdate = info;
+  trayManager?.setUpdateAvailable(info);
+  BrowserWindow.getAllWindows().forEach(w => {
+    w.webContents.send('update:available', info);
+  });
+}
+
 // IPC handlers
 function setupIPC(): void {
   // App
@@ -167,6 +177,19 @@ function setupIPC(): void {
   ipcMain.handle('app:get-update', () => latestUpdate);
   ipcMain.handle('app:open-update', () => {
     if (latestUpdate) void shell.openExternal(latestUpdate.url);
+  });
+  // Open an arbitrary external link in the user's default browser. Restricted
+  // to http(s) so a compromised renderer can't launch file:// or app schemes.
+  ipcMain.handle('app:open-external', (_event, url: string) => {
+    if (typeof url === 'string' && /^https?:\/\//.test(url)) {
+      void shell.openExternal(url);
+    }
+  });
+  // On-demand check triggered by the Settings "Check for updates" button.
+  ipcMain.handle('app:check-update', async (): Promise<UpdateCheckResult> => {
+    const result = await checkForUpdatesDetailed();
+    if (result.status === 'available') announceUpdate(result.info);
+    return result;
   });
 
   // Config
@@ -333,8 +356,13 @@ if (!isTeardown) void app.whenReady().then(async () => {
   await initDB();
   setupIPC();
 
-  // Clean expired clips on startup (fire and forget)
-  void cleanExpiredClips(config.retentionDays);
+  // Clean expired clips on startup (fire and forget): drop rows past the
+  // retention window and their image files, then sweep any orphaned files that
+  // older builds stranded in Clips/ by deleting rows without their PNGs.
+  void (async () => {
+    await cleanExpiredClips(config.retentionDays);
+    await pruneOrphanClipFiles(getClipsDir());
+  })();
 
   // Create popup window (hidden initially)
   mainWindow = createPopupWindow();
@@ -367,14 +395,9 @@ if (!isTeardown) void app.whenReady().then(async () => {
   ensureWinPasteHelper(getDataDir());
 
   // Update checker: poll GitHub releases API on startup (delayed) and every 24h.
-  // When a newer release is found, update the tray and push to all open renderer windows.
-  startUpdatePoller((info: UpdateInfo) => {
-    latestUpdate = info;
-    trayManager?.setUpdateAvailable(info);
-    BrowserWindow.getAllWindows().forEach(w => {
-      w.webContents.send('update:available', info);
-    });
-  });
+  // The on-demand "Check for updates" button (app:check-update) reuses the same
+  // announce path, so both surface a newer release identically.
+  startUpdatePoller(announceUpdate);
 
   // Show the popup, then (for pointer-anchored modes on KDE Wayland) ask
   // KWin to correct the placement — Electron's cursor position is stale
