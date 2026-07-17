@@ -289,6 +289,17 @@ function setupIPC(): void {
       }
       return true;
     }
+    if (process.platform === 'darwin') {
+      // Showing the popup activated CtrlC, stealing focus from the target app
+      // (TextEdit etc.). Hiding CtrlC hands focus back to whatever app was
+      // frontmost before the popup — standard macOS "hide restores the
+      // previous app" behavior. Without this, the Cmd+V below lands on CtrlC,
+      // which has no text field, so macOS just beeps and nothing pastes. The
+      // delay lets the focus handoff settle before the keystroke.
+      app.hide();
+      setTimeout(() => { void synthesizePaste(); }, 150);
+      return true;
+    }
     await restorePreviousFocus();
     setTimeout(() => {
       void synthesizePaste();
