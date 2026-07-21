@@ -54,10 +54,9 @@ export async function isElevated(): Promise<boolean> {
  * Spawn a new elevated instance and quit the current one.
  *
  * Uses PowerShell Start-Process -Verb RunAs to launch CtrlC elevated.
- * The current process exits ~1s later — enough time for the PowerShell
- * process to show UAC and start the elevated instance, but soon enough
- * that the single-instance lock is released before the elevated app
- * calls requestSingleInstanceLock().
+ * The child gets an internal --elevated-restart marker. It bypasses Electron's
+ * regular single-instance lock exactly once, avoiding a race where the child
+ * exits because the parent still owns the lock while it is shutting down.
  *
  * If the user cancels UAC, the PowerShell script finishes without
  * starting anything, ~1s later the non-elevated app exits, and nothing
@@ -68,17 +67,22 @@ export function restartAsAdmin(): void {
 
   const launcher = launcherParts();
   const args = launcher.appPath
-    ? `"${launcher.appPath}"`
-    : '';
+    ? `"${launcher.appPath}" --elevated-restart`
+    : '--elevated-restart';
 
   const psCmd = [
     '-NoProfile', '-NonInteractive', '-Command',
-    `$p = Start-Process -FilePath "${launcher.execPath}" -Verb RunAs -ArgumentList '${args}' -PassThru; Start-Sleep -Milliseconds 1200`,
+    `Start-Process -FilePath "${launcher.execPath}" -Verb RunAs -ArgumentList '${args}'`,
   ];
 
-  execFile('powershell', psCmd, { timeout: 30000, windowsHide: true }, () => {
-    // PowerShell finished — UAC was accepted or cancelled.
-    // Exit our instance so the elevated one can acquire the lock.
+  execFile('powershell', psCmd, { timeout: 30000, windowsHide: true }, (error) => {
+    if (error) {
+      // UAC was cancelled or Start-Process failed. Keep the existing instance
+      // usable rather than closing CtrlC with no replacement.
+      console.warn('[Elevate] Restart as administrator was cancelled or failed:', error.message);
+      return;
+    }
+    // The child can already run because --elevated-restart bypasses the lock.
     app.exit(0);
   });
 }
@@ -93,8 +97,8 @@ export async function enableElevatedAutoStart(): Promise<boolean> {
 
   const launcher = launcherParts();
   const executable = launcher.appPath
-    ? `"${launcher.execPath}" "${launcher.appPath}" --silent`
-    : `"${launcher.execPath}" --silent`;
+    ? `"${launcher.execPath}" "${launcher.appPath}"`
+    : `"${launcher.execPath}"`;
 
   try {
     await execFileAsync('schtasks', [

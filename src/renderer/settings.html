@@ -454,7 +454,7 @@
   <script>
       let currentConfig = null;
       let isRecording = false;
-      let isWindows = false;
+      let isWindowsPlatform = false;
       let isElevatedMode = false;
 
       // Get display platform shortcut (no `process` in the sandboxed renderer)
@@ -486,7 +486,7 @@
 
       async function loadSettings() {
         currentConfig = await window.ctrlc.getConfig();
-        isWindows = await window.ctrlc.isWindows();
+        isWindowsPlatform = await window.ctrlc.isWindows();
         isElevatedMode = await window.ctrlc.isElevated();
 
         document.getElementById('history-depth').value = currentConfig.historyDepth;
@@ -505,7 +505,7 @@
         const adminStatus = document.getElementById('admin-status');
         const runElevatedCheckbox = document.getElementById('run-elevated');
 
-        if (isWindows) {
+        if (isWindowsPlatform) {
           adminRow.style.display = '';
           runElevatedCheckbox.checked = currentConfig.runElevated;
 
@@ -531,7 +531,7 @@
           plainPasteModifier: document.getElementById('plain-paste-modifier').value,
         };
 
-        if (isWindows) {
+        if (isWindowsPlatform) {
           updates.runElevated = document.getElementById('run-elevated').checked;
         }
 

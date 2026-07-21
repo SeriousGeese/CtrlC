@@ -58,6 +58,9 @@ let elevated = false; // Windows admin elevation state
 // uninstallers; runs and exits without starting the app — and must skip the
 // single-instance lock so it works while the app is running.
 const isTeardown = process.argv.includes('--teardown');
+// Only a child launched by restartAsAdmin can bypass the regular Electron
+// single-instance lock. This avoids a lock handoff race during elevation.
+const isElevatedRestart = process.argv.includes('--elevated-restart');
 if (isTeardown) {
   void app.whenReady()
     .then(() => teardownLinuxIntegration(getDataDir()))
@@ -65,7 +68,7 @@ if (isTeardown) {
 }
 
 // Single-instance lock
-if (!isTeardown && !app.requestSingleInstanceLock()) {
+if (!isTeardown && !isElevatedRestart && !app.requestSingleInstanceLock()) {
   app.quit();
   process.exit(0);
 }

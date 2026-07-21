@@ -45,6 +45,25 @@ describe('config module', () => {
       const d = getClipsDir();
       expect(d).toBe(path.join(tmpDir, 'Clips'));
     });
+
+    it('uses USERPROFILE rather than HOME on Windows', () => {
+      const originalPlatform = process.platform;
+      const originalUserProfile = process.env.USERPROFILE;
+      const originalHome = process.env.HOME;
+      delete process.env.CTRLC_DATA_DIR;
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+      process.env.USERPROFILE = 'C:\\Users\\ctrlc-test';
+      process.env.HOME = 'C:\\unexpected-home';
+
+      expect(getDataDir()).toBe(path.join('C:\\Users\\ctrlc-test', '.CtrlC'));
+
+      Object.defineProperty(process, 'platform', { value: originalPlatform });
+      if (originalUserProfile === undefined) delete process.env.USERPROFILE;
+      else process.env.USERPROFILE = originalUserProfile;
+      if (originalHome === undefined) delete process.env.HOME;
+      else process.env.HOME = originalHome;
+      process.env.CTRLC_DATA_DIR = tmpDir;
+    });
   });
 
   describe('loadConfig (defaults)', () => {

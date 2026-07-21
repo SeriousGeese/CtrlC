@@ -9,7 +9,7 @@ const DATA_DIR_NAME = '.CtrlC';
 /**
  * Resolve the application data directory.
  * On Linux: ~/.CtrlC
- * On Windows: %APPDATA%/CtrlC
+ * On Windows: %USERPROFILE%/.CtrlC
  * On macOS: ~/Library/Application Support/CtrlC
  */
 function resolveDataDir(): string {
@@ -17,7 +17,13 @@ function resolveDataDir(): string {
     return process.env.CTRLC_DATA_DIR;
   }
 
-  const home = process.env.HOME || process.env.USERPROFILE || os.homedir();
+  // Git Bash, MSYS, and some installers set HOME even on Windows. That value
+  // can point to a POSIX-style or service-account directory, while USERPROFILE
+  // identifies the actual signed-in Windows account. Keep the historical
+  // %USERPROFILE%/.CtrlC location stable across normal and elevated launches.
+  const home = process.platform === 'win32'
+    ? process.env.USERPROFILE || os.homedir()
+    : process.env.HOME || process.env.USERPROFILE || os.homedir();
   return path.join(home, DATA_DIR_NAME);
 }
 
