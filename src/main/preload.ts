@@ -11,6 +11,9 @@ contextBridge.exposeInMainWorld('ctrlc', {
   onUpdateAvailable: (cb: (info: UpdateInfo) => void): void => {
     ipcRenderer.on('update:available', (_event, info: UpdateInfo) => cb(info));
   },
+  isElevated: (): Promise<boolean> => ipcRenderer.invoke('app:is-elevated'),
+  isWindows: (): Promise<boolean> => ipcRenderer.invoke('app:is-windows'),
+  restartAsAdmin: (): Promise<void> => ipcRenderer.invoke('app:restart-as-admin'),
 
   // Config
   getConfig: () => ipcRenderer.invoke('config:get'),
@@ -45,6 +48,9 @@ declare global {
       openUpdatePage: () => Promise<void>;
       openExternal: (url: string) => Promise<void>;
       onUpdateAvailable: (cb: (info: UpdateInfo) => void) => void;
+      isElevated: () => Promise<boolean>;
+      isWindows: () => Promise<boolean>;
+      restartAsAdmin: () => Promise<void>;
       getConfig: () => Promise<AppConfig>;
       updateConfig: (updates: Partial<AppConfig>) => Promise<AppConfig>;
       getRecentClips: () => Promise<ClipData[]>;
