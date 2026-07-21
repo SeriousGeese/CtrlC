@@ -68,8 +68,8 @@ export function restartAsAdmin(): void {
 
   const launcher = launcherParts();
   const args = launcher.appPath
-    ? `"${launcher.appPath}" --silent`
-    : '--silent';
+    ? `"${launcher.appPath}"`
+    : '';
 
   const psCmd = [
     '-NoProfile', '-NonInteractive', '-Command',
