@@ -8,6 +8,7 @@ export class TrayManager extends EventEmitter {
   private tray: Tray | null = null;
   private configPath: string;
   private pendingUpdate: UpdateInfo | null = null;
+  private elevated: boolean = false;
 
   constructor(_mainWindow: BrowserWindow) {
     super();
@@ -53,12 +54,26 @@ export class TrayManager extends EventEmitter {
     this.rebuildMenu();
   }
 
+  setElevated(isElevated: boolean): void {
+    this.elevated = isElevated;
+    this.rebuildMenu();
+  }
+
   private rebuildMenu(): void {
     if (!this.tray) return;
     const hotkey = this.getHotkeyFromConfig();
 
     type MenuItemTemplate = Parameters<typeof Menu.buildFromTemplate>[0][number];
     const template: MenuItemTemplate[] = [];
+
+    // Admin indicator (Windows only)
+    if (this.elevated) {
+      template.push({
+        label: '⚠ Running as Administrator',
+        enabled: false,
+      });
+      template.push({ type: 'separator' });
+    }
 
     if (this.pendingUpdate) {
       template.push({
@@ -73,6 +88,10 @@ export class TrayManager extends EventEmitter {
       { type: 'separator' },
       { label: 'Settings', click: () => this.emit('settings') },
       { label: 'About CtrlC', click: () => this.emit('about') },
+      // Windows-only: restart as admin when not already elevated
+      ...(process.platform === 'win32' && !this.elevated
+        ? [{ label: 'Restart as Administrator', click: () => this.emit('restart-as-admin') } as MenuItemTemplate]
+        : []),
       { type: 'separator' },
       { label: 'Exit', click: () => this.emit('exit') },
     );
@@ -82,7 +101,9 @@ export class TrayManager extends EventEmitter {
     this.tray.setToolTip(
       this.pendingUpdate
         ? `CtrlC — Update available ${this.pendingUpdate.version}`
-        : `CtrlC — Clipboard Manager (${hotkey})`,
+        : this.elevated
+          ? `CtrlC — Clipboard Manager (Administrator)`
+          : `CtrlC — Clipboard Manager (${hotkey})`,
     );
   }
 

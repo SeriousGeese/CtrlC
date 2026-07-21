@@ -33,6 +33,7 @@ export interface AppConfig {
   saveHtml: boolean;
   saveBinary: boolean;
   autoStart: boolean;
+  runElevated: boolean; // Windows: start as admin (uses Task Scheduler)
   dataDir: string;
   popupPosition: PopupPositionMode;
   plainPasteModifier: PlainPasteModifier;
@@ -46,6 +47,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   saveHtml: true,
   saveBinary: true,
   autoStart: false,
+  runElevated: false,
   dataDir: '', // resolved at runtime to ~/.CtrlC
   popupPosition: 'mouse',
   plainPasteModifier: 'ctrl',

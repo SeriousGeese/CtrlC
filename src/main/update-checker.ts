@@ -1,4 +1,4 @@
-import { app } from 'electron';
+import { app, net } from 'electron';
 import type { UpdateInfo, UpdateCheckResult } from '../shared/types';
 
 const REPO = 'SeriousGeese/CtrlC';
@@ -26,14 +26,14 @@ function isNewer(latest: string, current: string): boolean {
 export async function checkForUpdatesDetailed(): Promise<UpdateCheckResult> {
   const current = app.getVersion();
   try {
-    const res = await fetch(API_URL, {
+    const response = await net.fetch(API_URL, {
       headers: { 'User-Agent': `CtrlC/${current}` },
     });
-    if (!res.ok) {
-      console.warn(`[Update] GitHub API returned ${res.status} ${res.statusText}`);
+    if (!response.ok) {
+      console.warn(`[Update] GitHub API returned ${response.status} ${response.statusText}`);
       return { status: 'error' };
     }
-    const data = await res.json() as {
+    const data = await response.json() as {
       tag_name: string;
       html_url: string;
       published_at: string;
