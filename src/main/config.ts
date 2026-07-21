@@ -79,6 +79,7 @@ interface ParsedConfig {
   saveHtml?: boolean;
   saveBinary?: boolean;
   autoStart?: boolean;
+  runElevated?: boolean;
   dataDir?: string;
   popupPosition?: string;
   plainPasteModifier?: string;
@@ -114,6 +115,9 @@ function serializeToml(config: Partial<AppConfig>): string {
   if (config.autoStart !== undefined) {
     pairs.push(`autoStart = ${config.autoStart}`);
   }
+  if (config.runElevated !== undefined) {
+    pairs.push(`runElevated = ${config.runElevated}`);
+  }
   if (config.dataDir !== undefined) {
     pairs.push(`dataDir = "${config.dataDir}"`);
   }
@@ -147,6 +151,7 @@ export function loadConfig(): AppConfig {
     if (parsed.saveHtml !== undefined) { fileConfig.saveHtml = parsed.saveHtml; }
     if (parsed.saveBinary !== undefined) { fileConfig.saveBinary = parsed.saveBinary; }
     if (parsed.autoStart !== undefined) { fileConfig.autoStart = parsed.autoStart; }
+    if (parsed.runElevated !== undefined) { fileConfig.runElevated = parsed.runElevated; }
     if (parsed.dataDir !== undefined) { fileConfig.dataDir = parsed.dataDir; }
     if (parsed.popupPosition !== undefined &&
         POPUP_POSITION_MODES.includes(parsed.popupPosition as PopupPositionMode)) {

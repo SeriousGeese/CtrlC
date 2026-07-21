@@ -17,8 +17,9 @@ import { ensureKWinHelper, restorePreviousFocus, placePopupAtCursor, placePopupC
 import { htmlToText } from './html-text';
 import { ensureYdotoold, teardownLinuxIntegration } from './linux-setup';
 import { launcherParts } from './exec-info';
-import { ensureWinPasteHelper, captureForegroundWindow, pasteToCapturedWindow, stopWinPasteHelper } from './win-paste';
+import { ensureWinPasteHelper, captureForegroundWindow, pasteToCapturedWindow, pasteElevated, stopWinPasteHelper } from './win-paste';
 import { startUpdatePoller, checkForUpdatesDetailed } from './update-checker';
+import { isElevated, restartAsAdmin, enableElevatedAutoStart, disableElevatedAutoStart, isElevatedAutoStartEnabled } from './elevate';
 import type { UpdateInfo, UpdateCheckResult } from '../shared/types';
 
 // Set process name for task managers / ps
@@ -50,6 +51,7 @@ let clipboardCapture: ClipboardCapture | null = null;
 let settingsManager: SettingsManager | null = null;
 let aboutManager: AboutManager | null = null;
 let config = loadConfig();
+let elevated = false; // Windows admin elevation state
 
 // `ctrlc --teardown`: remove everything installed outside the app (DE
 // shortcut, autostart entry, ydotoold unit, KWin helper). Used by
@@ -192,6 +194,13 @@ function setupIPC(): void {
     return result;
   });
 
+  // Elevation (Windows admin mode)
+  ipcMain.handle('app:is-elevated', (): boolean => elevated);
+  ipcMain.handle('app:is-windows', (): boolean => process.platform === 'win32');
+  ipcMain.handle('app:restart-as-admin', (): void => {
+    restartAsAdmin();
+  });
+
   // Config
   ipcMain.handle('config:get', () => config);
   ipcMain.handle('config:update', async (_event, updates: Partial<AppConfig>) => {
@@ -216,6 +225,15 @@ function setupIPC(): void {
         enableAutoStart();
       } else {
         disableAutoStart();
+      }
+    }
+
+    // Toggle elevated auto-start (Windows Task Scheduler)
+    if (updates.runElevated !== undefined) {
+      if (updates.runElevated && process.platform === 'win32') {
+        void enableElevatedAutoStart();
+      } else if (process.platform === 'win32') {
+        void disableElevatedAutoStart();
       }
     }
 
@@ -308,7 +326,15 @@ function setupIPC(): void {
       const pasted = await pasteToCapturedWindow();
       if (!pasted) {
         // Helper unavailable — best-effort one-shot fallback
-        setTimeout(() => { void synthesizePaste(); }, 250);
+        if (!elevated) {
+          // Not running as admin; try elevated one-shot for admin windows
+          const elevatedPasted = await pasteElevated(getDataDir());
+          if (!elevatedPasted) {
+            setTimeout(() => { void synthesizePaste(); }, 250);
+          }
+        } else {
+          setTimeout(() => { void synthesizePaste(); }, 250);
+        }
       }
       return true;
     }
@@ -349,6 +375,20 @@ function setupIPC(): void {
 if (!isTeardown) void app.whenReady().then(async () => {
   ensureDataDir();
 
+  // Detect Windows elevation state
+  elevated = await isElevated();
+  if (elevated) {
+    console.log('[CtrlC] Running with administrator privileges — paste works in elevated windows');
+  }
+  if (process.platform === 'win32' && !isTeardown) {
+    // Sync elevated auto-start preference from Task Scheduler
+    const taskExists = await isElevatedAutoStartEnabled();
+    if (taskExists !== config.runElevated) {
+      config.runElevated = taskExists;
+      await saveConfig(config);
+    }
+  }
+
   // Set DB path
   const dbFilePath = path.join(getDataDir(), '.config', 'cutc.db');
   setDbPath(dbFilePath);
@@ -377,6 +417,7 @@ if (!isTeardown) void app.whenReady().then(async () => {
 
   // Tray
   trayManager = new TrayManager(mainWindow);
+  trayManager.setElevated(elevated);
 
   // Hotkey (reads the position mode live so settings changes apply instantly)
   hotkeyManager = new HotkeyManager(mainWindow, config.hotkey, () => config.popupPosition);
@@ -459,6 +500,9 @@ if (!isTeardown) void app.whenReady().then(async () => {
   });
   trayManager.on('about', () => {
     aboutManager?.show();
+  });
+  trayManager.on('restart-as-admin', () => {
+    restartAsAdmin();
   });
   trayManager.on('exit', () => {
     // Manual cleanup before force-exit — app.quit() stalls because the

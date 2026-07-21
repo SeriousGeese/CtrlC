@@ -241,6 +241,51 @@
       cursor: default;
     }
 
+    .tooltip-label {
+      position: relative;
+      cursor: help;
+      display: inline-flex;
+      align-items: center;
+      width: 14px;
+      height: 14px;
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      border-radius: 50%;
+      font-size: 9px;
+      justify-content: center;
+      color: rgba(0, 255, 0, 0.5);
+    }
+
+    .tooltip-label::before {
+      content: '?';
+    }
+
+    .tooltip-text {
+      visibility: hidden;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(5, 5, 5, 0.98);
+      border: 1px solid rgba(0, 255, 0, 0.3);
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 11px;
+      color: #00ff00;
+      white-space: normal;
+      width: 220px;
+      text-align: center;
+      z-index: 10;
+    }
+
+    .tooltip-label:hover .tooltip-text {
+      visibility: visible;
+    }
+
+    #admin-status {
+      font-size: 11px;
+      margin-left: auto;
+    }
+
     .footer {
       padding: 10px 16px;
       border-top: 1px solid rgba(0, 255, 0, 0.1);
@@ -376,6 +421,20 @@
           <span class="toggle-track"></span>
         </label>
       </div>
+      <div class="setting-row" id="admin-mode-row" style="display:none;">
+        <label>Run as administrator</label>
+        <label class="tooltip-label">
+          <span class="tooltip-text">Paste into elevated (admin) windows. Restart required.</span>
+        </label>
+        <label class="toggle">
+          <input type="checkbox" id="run-elevated">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="setting-row" id="admin-status-row" style="display:none;">
+        <label></label>
+        <span id="admin-status"></span>
+      </div>
     </div>
   </div>
 
@@ -393,62 +452,90 @@
   </div>
 
   <script>
-    let currentConfig = null;
-    let isRecording = false;
+      let currentConfig = null;
+      let isRecording = false;
+      let isWindows = false;
+      let isElevatedMode = false;
 
-    // Get display platform shortcut (no `process` in the sandboxed renderer)
-    function getModifierLabel() {
-      return navigator.platform.toUpperCase().includes('MAC') ? 'Cmd' : 'Ctrl';
-    }
-
-    // Shorten hotkey display for readability
-    function shortenHotkey(hotkey) {
-      if (!hotkey) return 'Not set';
-      
-      // Replace platform-specific modifiers with short labels
-      let display = hotkey
-        .replace(/^CommandOrControl\+/g, '')
-        .replace(/^Command\+/g, '')
-        .replace(/^Control\+/g, '')
-        .replace(/^Alt\+/g, 'Alt+')
-        .replace(/^Shift\+/g, 'Shift+')
-        .replace(/\+Backquote/g, '+`')
-        .replace(/\+backquote/g, '+`');
-      
-      // Add modifier back with short label
-      if (hotkey.startsWith('CommandOrControl') || hotkey.startsWith('Command') || hotkey.startsWith('Control')) {
-        display = getModifierLabel() + '+' + display;
+      // Get display platform shortcut (no `process` in the sandboxed renderer)
+      function getModifierLabel() {
+        return navigator.platform.toUpperCase().includes('MAC') ? 'Cmd' : 'Ctrl';
       }
+
+      // Shorten hotkey display for readability
+      function shortenHotkey(hotkey) {
+        if (!hotkey) return 'Not set';
       
-      return display;
-    }
+        // Replace platform-specific modifiers with short labels
+        let display = hotkey
+          .replace(/^CommandOrControl\+/g, '')
+          .replace(/^Command\+/g, '')
+          .replace(/^Control\+/g, '')
+          .replace(/^Alt\+/g, 'Alt+')
+          .replace(/^Shift\+/g, 'Shift+')
+          .replace(/\+Backquote/g, '+`')
+          .replace(/\+backquote/g, '+`');
+      
+        // Add modifier back with short label
+        if (hotkey.startsWith('CommandOrControl') || hotkey.startsWith('Command') || hotkey.startsWith('Control')) {
+          display = getModifierLabel() + '+' + display;
+        }
+      
+        return display;
+      }
 
-    async function loadSettings() {
-      currentConfig = await window.ctrlc.getConfig();
+      async function loadSettings() {
+        currentConfig = await window.ctrlc.getConfig();
+        isWindows = await window.ctrlc.isWindows();
+        isElevatedMode = await window.ctrlc.isElevated();
 
-      document.getElementById('history-depth').value = currentConfig.historyDepth;
-      document.getElementById('retention-days').value = currentConfig.retentionDays;
-      document.getElementById('save-images').checked = currentConfig.saveImages;
-      document.getElementById('save-html').checked = currentConfig.saveHtml;
-      document.getElementById('save-binary').checked = currentConfig.saveBinary;
-      document.getElementById('auto-start').checked = currentConfig.autoStart;
-      document.getElementById('popup-position').value = currentConfig.popupPosition || 'mouse';
-      document.getElementById('plain-paste-modifier').value = currentConfig.plainPasteModifier || 'ctrl';
-      document.getElementById('hotkey-display').textContent = shortenHotkey(currentConfig.hotkey);
-    }
+        document.getElementById('history-depth').value = currentConfig.historyDepth;
+        document.getElementById('retention-days').value = currentConfig.retentionDays;
+        document.getElementById('save-images').checked = currentConfig.saveImages;
+        document.getElementById('save-html').checked = currentConfig.saveHtml;
+        document.getElementById('save-binary').checked = currentConfig.saveBinary;
+        document.getElementById('auto-start').checked = currentConfig.autoStart;
+        document.getElementById('popup-position').value = currentConfig.popupPosition || 'mouse';
+        document.getElementById('plain-paste-modifier').value = currentConfig.plainPasteModifier || 'ctrl';
+        document.getElementById('hotkey-display').textContent = shortenHotkey(currentConfig.hotkey);
 
-    async function saveSettings() {
-      const updates = {
-        historyDepth: parseInt(document.getElementById('history-depth').value) || 100,
-        retentionDays: parseInt(document.getElementById('retention-days').value) || 30,
-        saveImages: document.getElementById('save-images').checked,
-        saveHtml: document.getElementById('save-html').checked,
-        saveBinary: document.getElementById('save-binary').checked,
-        autoStart: document.getElementById('auto-start').checked,
-        popupPosition: document.getElementById('popup-position').value,
-        plainPasteModifier: document.getElementById('plain-paste-modifier').value,
-      };
-      await window.ctrlc.updateConfig(updates);
+        // Admin status (Windows only)
+        const adminRow = document.getElementById('admin-mode-row');
+        const adminStatusRow = document.getElementById('admin-status-row');
+        const adminStatus = document.getElementById('admin-status');
+        const runElevatedCheckbox = document.getElementById('run-elevated');
+
+        if (isWindows) {
+          adminRow.style.display = '';
+          runElevatedCheckbox.checked = currentConfig.runElevated;
+
+          if (isElevatedMode) {
+            adminStatusRow.style.display = '';
+            adminStatus.textContent = '⚠ Running as Administrator — can paste into elevated windows';
+            adminStatus.style.color = 'rgba(255, 191, 0, 0.9)';
+            runElevatedCheckbox.disabled = true;
+            adminRow.style.opacity = '0.5';
+          }
+        }
+      }
+
+      async function saveSettings() {
+        const updates = {
+          historyDepth: parseInt(document.getElementById('history-depth').value) || 100,
+          retentionDays: parseInt(document.getElementById('retention-days').value) || 30,
+          saveImages: document.getElementById('save-images').checked,
+          saveHtml: document.getElementById('save-html').checked,
+          saveBinary: document.getElementById('save-binary').checked,
+          autoStart: document.getElementById('auto-start').checked,
+          popupPosition: document.getElementById('popup-position').value,
+          plainPasteModifier: document.getElementById('plain-paste-modifier').value,
+        };
+
+        if (isWindows) {
+          updates.runElevated = document.getElementById('run-elevated').checked;
+        }
+
+        await window.ctrlc.updateConfig(updates);
     }
 
     function showHotkeyWarning(msg) {
@@ -605,7 +692,8 @@
       document.getElementById('update-version-text').textContent =
         '↑ ' + info.version + ' available';
       const wingetBtn = document.getElementById('winget-btn');
-      if (isWindows) wingetBtn.style.display = '';
+      // Hidden until CtrlC is published to winget (feature toggle)
+      wingetBtn.style.display = 'none';
       document.getElementById('update-info').classList.remove('hidden');
     }
 
