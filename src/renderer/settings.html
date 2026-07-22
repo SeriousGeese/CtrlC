@@ -241,46 +241,6 @@
       cursor: default;
     }
 
-    .tooltip-label {
-      position: relative;
-      cursor: help;
-      display: inline-flex;
-      align-items: center;
-      width: 14px;
-      height: 14px;
-      border: 1px solid rgba(0, 255, 0, 0.3);
-      border-radius: 50%;
-      font-size: 9px;
-      justify-content: center;
-      color: rgba(0, 255, 0, 0.5);
-    }
-
-    .tooltip-label::before {
-      content: '?';
-    }
-
-    .tooltip-text {
-      visibility: hidden;
-      position: absolute;
-      bottom: calc(100% + 8px);
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(5, 5, 5, 0.98);
-      border: 1px solid rgba(0, 255, 0, 0.3);
-      border-radius: 4px;
-      padding: 6px 10px;
-      font-size: 11px;
-      color: #00ff00;
-      white-space: normal;
-      width: 220px;
-      text-align: center;
-      z-index: 10;
-    }
-
-    .tooltip-label:hover .tooltip-text {
-      visibility: visible;
-    }
-
     #admin-status {
       font-size: 11px;
       margin-left: auto;
@@ -423,9 +383,6 @@
       </div>
       <div class="setting-row" id="admin-mode-row" style="display:none;">
         <label>Run as administrator</label>
-        <label class="tooltip-label">
-          <span class="tooltip-text">Paste into elevated (admin) windows. Restart required.</span>
-        </label>
         <label class="toggle">
           <input type="checkbox" id="run-elevated">
           <span class="toggle-track"></span>
@@ -435,20 +392,25 @@
         <label></label>
         <span id="admin-status"></span>
       </div>
+      <div class="setting-row">
+        <label>Check for updates</label>
+        <span class="update-check">
+          <span id="update-status"></span>
+          <button class="update-btn" id="check-update-btn">Check</button>
+        </span>
+      </div>
+      <div class="setting-row update-info hidden" id="update-info">
+        <label></label>
+        <span>
+          <span id="update-version-text"></span>
+          <button class="update-btn" id="releases-btn">GitHub Releases</button>
+        </span>
+      </div>
     </div>
   </div>
 
   <div class="footer">
     <span>CtrlC — Cross-platform clipboard manager</span>
-    <span class="update-info hidden" id="update-info">
-      <span id="update-version-text"></span>
-      <button class="update-btn" id="winget-btn" style="display:none">winget upgrade</button>
-      <button class="update-btn" id="releases-btn">GitHub Releases</button>
-    </span>
-    <span class="update-check">
-      <span id="update-status"></span>
-      <button class="update-btn" id="check-update-btn">Check for updates</button>
-    </span>
   </div>
 
   <script>
@@ -691,19 +653,8 @@
     function showUpdateSettings(info) {
       document.getElementById('update-version-text').textContent =
         '↑ ' + info.version + ' available';
-      const wingetBtn = document.getElementById('winget-btn');
-      // Hidden until CtrlC is published to winget (feature toggle)
-      wingetBtn.style.display = 'none';
       document.getElementById('update-info').classList.remove('hidden');
     }
-
-    document.getElementById('winget-btn').addEventListener('click', () => {
-      const btn = document.getElementById('winget-btn');
-      navigator.clipboard.writeText('winget upgrade CtrlC').then(() => {
-        btn.textContent = 'Copied!';
-        setTimeout(() => { btn.textContent = 'winget upgrade'; }, 2000);
-      }).catch(() => {});
-    });
 
     document.getElementById('releases-btn').addEventListener('click', () => {
       window.ctrlc.openUpdatePage();

@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, shell } from 'electron';
+import { BrowserWindow, ipcMain, shell, screen } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { centerOnPrimary } from './popup/position';
@@ -37,9 +37,13 @@ export class SettingsManager {
       return;
     }
 
+    // Cap at 2/3 of the primary display's work area. On small screens the
+    // window may scroll; on large screens it shrinks to fit content exactly.
+    const maxH = Math.max(440, Math.floor(screen.getPrimaryDisplay().workAreaSize.height * 2 / 3));
+
     this.window = new BrowserWindow({
       width: 480,
-      height: 440,
+      height: maxH,
       frame: true,
       transparent: false,
       resizable: false,
@@ -49,7 +53,19 @@ export class SettingsManager {
         nodeIntegration: false,
       },
     });
-    centerWindowOnPrimary(this.window, 480, 440);
+    centerWindowOnPrimary(this.window, 480, maxH);
+
+    // After the page renders, shrink the window to exactly fit the content
+    // (capped at maxH so it never exceeds 2/3 of the screen).
+    this.window.webContents.on('did-finish-load', () => {
+      this.window!.webContents.executeJavaScript('document.documentElement.scrollHeight')
+        .then((contentH: number) => {
+          const h = Math.min(contentH + 4, maxH);
+          this.window!.setSize(480, h);
+          centerWindowOnPrimary(this.window!, 480, h);
+        })
+        .catch(() => { /* content height unavailable — keep maxH */ });
+    });
 
     // Set app icon
     const iconPath = path.join(__dirname, '../../assets/tray-icon.png');
