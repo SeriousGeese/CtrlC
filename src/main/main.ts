@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, clipboard, Menu, nativeImage, dialog, shell } from 'electron';
+import { execFileSync } from 'node:child_process';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { loadConfig, saveConfig, getDataDir, getClipsDir } from './config';
@@ -58,9 +59,25 @@ let elevated = false; // Windows admin elevation state
 // uninstallers; runs and exits without starting the app — and must skip the
 // single-instance lock so it works while the app is running.
 const isTeardown = process.argv.includes('--teardown');
-// Only a child launched by restartAsAdmin can bypass the regular Electron
-// single-instance lock. This avoids a lock handoff race during elevation.
-const isElevatedRestart = process.argv.includes('--elevated-restart');
+const elevatedRestartArg = process.argv.find((arg) => arg.startsWith('--elevated-restart='));
+
+// A restart-as-admin child waits for the non-elevated parent to exit before
+// acquiring the normal Electron single-instance lock. This has no privileged
+// bypass: any arbitrary launch still goes through requestSingleInstanceLock.
+if (process.platform === 'win32' && elevatedRestartArg) {
+  const parentPid = Number(elevatedRestartArg.slice('--elevated-restart='.length));
+  if (Number.isSafeInteger(parentPid) && parentPid > 0) {
+    try {
+      execFileSync('powershell.exe', [
+        '-NoProfile', '-NonInteractive', '-Command',
+        `Wait-Process -Id ${parentPid} -Timeout 15 -ErrorAction SilentlyContinue`,
+      ], { timeout: 20000, windowsHide: true });
+    } catch {
+      // The parent already exited or the wait timed out. Continue through the
+      // regular single-instance lock below either way.
+    }
+  }
+}
 if (isTeardown) {
   void app.whenReady()
     .then(() => teardownLinuxIntegration(getDataDir()))
@@ -68,7 +85,7 @@ if (isTeardown) {
 }
 
 // Single-instance lock
-if (!isTeardown && !isElevatedRestart && !app.requestSingleInstanceLock()) {
+if (!isTeardown && !app.requestSingleInstanceLock()) {
   app.quit();
   process.exit(0);
 }

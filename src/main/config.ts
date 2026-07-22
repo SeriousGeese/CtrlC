@@ -21,9 +21,26 @@ function resolveDataDir(): string {
   // can point to a POSIX-style or service-account directory, while USERPROFILE
   // identifies the actual signed-in Windows account. Keep the historical
   // %USERPROFILE%/.CtrlC location stable across normal and elevated launches.
-  const home = process.platform === 'win32'
-    ? process.env.USERPROFILE || os.homedir()
-    : process.env.HOME || process.env.USERPROFILE || os.homedir();
+  if (process.platform === 'win32') {
+    const canonicalDir = path.join(process.env.USERPROFILE || os.homedir(), DATA_DIR_NAME);
+    const legacyHome = process.env.HOME;
+    const legacyDir = legacyHome ? path.join(legacyHome, DATA_DIR_NAME) : '';
+
+    // Older builds used HOME before USERPROFILE. If Git Bash/MSYS assigned a
+    // different HOME, preserve the full config/history directory instead of
+    // making an update appear to reset CtrlC. Rename is atomic on one volume;
+    // falling back to the legacy directory avoids data loss if it cannot move.
+    if (!fs.existsSync(canonicalDir) && legacyDir && legacyDir !== canonicalDir && fs.existsSync(legacyDir)) {
+      try {
+        fs.renameSync(legacyDir, canonicalDir);
+      } catch {
+        return legacyDir;
+      }
+    }
+    return canonicalDir;
+  }
+
+  const home = process.env.HOME || process.env.USERPROFILE || os.homedir();
   return path.join(home, DATA_DIR_NAME);
 }
 

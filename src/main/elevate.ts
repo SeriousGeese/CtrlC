@@ -54,21 +54,20 @@ export async function isElevated(): Promise<boolean> {
  * Spawn a new elevated instance and quit the current one.
  *
  * Uses PowerShell Start-Process -Verb RunAs to launch CtrlC elevated.
- * The child gets an internal --elevated-restart marker. It bypasses Electron's
- * regular single-instance lock exactly once, avoiding a race where the child
- * exits because the parent still owns the lock while it is shutting down.
+ * The child waits for this process to exit, then claims Electron's regular
+ * single-instance lock. A command-line marker is coordination only; it never
+ * bypasses the lock or authorizes concurrent CtrlC instances.
  *
- * If the user cancels UAC, the PowerShell script finishes without
- * starting anything, ~1s later the non-elevated app exits, and nothing
- * runs.
+ * If the user cancels UAC, the original instance keeps running.
  */
 export function restartAsAdmin(): void {
   if (process.platform !== 'win32') return;
 
   const launcher = launcherParts();
+  const restartArg = `--elevated-restart=${process.pid}`;
   const args = launcher.appPath
-    ? `"${launcher.appPath}" --elevated-restart`
-    : '--elevated-restart';
+    ? `"${launcher.appPath}" ${restartArg}`
+    : restartArg;
 
   const psCmd = [
     '-NoProfile', '-NonInteractive', '-Command',
@@ -82,7 +81,7 @@ export function restartAsAdmin(): void {
       console.warn('[Elevate] Restart as administrator was cancelled or failed:', error.message);
       return;
     }
-    // The child can already run because --elevated-restart bypasses the lock.
+    // The elevated child waits for this PID before acquiring the normal lock.
     app.exit(0);
   });
 }
