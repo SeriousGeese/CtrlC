@@ -41,9 +41,15 @@ export class SettingsManager {
     // window may scroll; on large screens it shrinks to fit content exactly.
     const maxH = Math.max(440, Math.floor(screen.getPrimaryDisplay().workAreaSize.height * 2 / 3));
 
+    // Use a small initial height so the window stays unobtrusive until the
+    // renderer signals layout is ready. We then measure content, resize to
+    // exactly fit (capped at maxH), center, and show. Even if show:false is
+    // ignored on KDE Wayland, the tiny starting height prevents blank space.
+    const MIN_INIT = 200;
+
     this.window = new BrowserWindow({
       width: 480,
-      height: maxH,
+      height: MIN_INIT,
       show: false, // hidden until we resize to fit content
       frame: true,
       transparent: false,
@@ -55,10 +61,13 @@ export class SettingsManager {
       },
     });
 
-    // The renderer signals when all async DOM mutations (loadSettings) are
-    // done. At that point we measure the content height, shrink the window
-    // to fit (capped at maxH), center, and finally show it — no blank space.
-    const readyHandler = (_event: Electron.IpcMainInvokeEvent) => {
+    // Resize the window to fit content (capped at maxH), center it, and
+    // show it. Safe to call multiple times — the first call wins.
+    let sized = false;
+    const fitToContent = () => {
+      if (sized) return;
+      sized = true;
+
       this.window!.webContents.executeJavaScript('document.documentElement.scrollHeight')
         .then((contentH: number) => {
           const h = Math.min(contentH + 4, maxH);
@@ -73,10 +82,16 @@ export class SettingsManager {
         });
     };
 
-    ipcMain.handle('settings:ready', readyHandler);
+    // Primary signal: the renderer calls settings:ready after all async DOM
+    // mutations (loadSettings) have completed. This gives the correct height.
+    ipcMain.handle('settings:ready', fitToContent);
+
+    // Fallback: if settings:ready is somehow never sent (e.g. renderer error
+    // on an unusual platform), still show the window at maxH after a timeout.
+    const fallbackTimer = setTimeout(fitToContent, 3000);
 
     this.window.on('closed', () => {
-      // Clean up the one-shot handler when the window closes
+      clearTimeout(fallbackTimer);
       ipcMain.removeHandler('settings:ready');
     });
 
