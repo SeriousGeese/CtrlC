@@ -62,6 +62,14 @@
       flex: 1;
     }
 
+    .setting-control {
+      width: 220px;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
     .setting-row input[type="text"] {
       width: 180px;
       background: rgba(0, 255, 0, 0.05);
@@ -305,14 +313,15 @@
       <h2>Retention</h2>
       <div class="setting-row">
         <label>History depth</label>
-        <input type="number" id="history-depth" min="10" max="1000" step="10">
+        <div class="setting-control"><input type="number" id="history-depth" min="10" max="1000" step="10"></div>
       </div>
       <div class="setting-row">
         <label>Retention (days)</label>
-        <input type="number" id="retention-days" min="1" max="365">
+        <div class="setting-control"><input type="number" id="retention-days" min="1" max="365"></div>
       </div>
-      <div class="setting-row" style="justify-content: flex-end;">
-        <button class="danger-btn" id="clear-history">Clear History…</button>
+      <div class="setting-row">
+        <label></label>
+        <div class="setting-control"><button class="danger-btn" id="clear-history">Clear History…</button></div>
       </div>
     </div>
 
@@ -320,19 +329,19 @@
       <h2>Popup</h2>
       <div class="setting-row">
         <label>Pop-up position</label>
-        <select id="popup-position">
+        <div class="setting-control"><select id="popup-position">
           <option value="mouse">Mouse</option>
           <option value="center-primary">Center of Primary Screen</option>
           <option value="center-current">Center of Current Screen</option>
-        </select>
+        </select></div>
       </div>
       <div class="setting-row">
         <label>Plain-text paste modifier</label>
-        <select id="plain-paste-modifier">
+        <div class="setting-control"><select id="plain-paste-modifier">
           <option value="ctrl">Ctrl</option>
           <option value="shift">Shift</option>
           <option value="alt">Alt</option>
-        </select>
+        </select></div>
       </div>
     </div>
 
@@ -340,24 +349,24 @@
       <h2>Save Options</h2>
       <div class="setting-row">
         <label>Save images</label>
-        <label class="toggle">
+        <div class="setting-control"><label class="toggle">
           <input type="checkbox" id="save-images">
           <span class="toggle-track"></span>
-        </label>
+        </label></div>
       </div>
       <div class="setting-row">
         <label>Save HTML</label>
-        <label class="toggle">
+        <div class="setting-control"><label class="toggle">
           <input type="checkbox" id="save-html">
           <span class="toggle-track"></span>
-        </label>
+        </label></div>
       </div>
       <div class="setting-row">
         <label>Save binary files</label>
-        <label class="toggle">
+        <div class="setting-control"><label class="toggle">
           <input type="checkbox" id="save-binary">
           <span class="toggle-track"></span>
-        </label>
+        </label></div>
       </div>
     </div>
 
@@ -365,10 +374,10 @@
       <h2>Hotkey</h2>
       <div class="setting-row">
         <label>Toggle popup</label>
-        <div class="hotkey-row">
+        <div class="setting-control"><div class="hotkey-row">
           <div class="hotkey-display" id="hotkey-display" title="Click to record">Ctrl+`</div>
           <button class="hotkey-cancel" id="hotkey-cancel" title="Cancel (Esc)">✕</button>
-        </div>
+        </div></div>
       </div>
     </div>
 
@@ -376,35 +385,35 @@
       <h2>System</h2>
       <div class="setting-row">
         <label>Start on login</label>
-        <label class="toggle">
+        <div class="setting-control"><label class="toggle">
           <input type="checkbox" id="auto-start">
           <span class="toggle-track"></span>
-        </label>
+        </label></div>
       </div>
       <div class="setting-row" id="admin-mode-row" style="display:none;">
         <label>Run as administrator</label>
-        <label class="toggle">
+        <div class="setting-control"><label class="toggle">
           <input type="checkbox" id="run-elevated">
           <span class="toggle-track"></span>
-        </label>
+        </label></div>
       </div>
       <div class="setting-row" id="admin-status-row" style="display:none;">
         <label></label>
-        <span id="admin-status"></span>
+        <div class="setting-control"><span id="admin-status"></span></div>
       </div>
       <div class="setting-row">
         <label>Check for updates</label>
-        <span class="update-check">
+        <div class="setting-control"><span class="update-check">
           <span id="update-status"></span>
           <button class="update-btn" id="check-update-btn">Check</button>
-        </span>
+        </span></div>
       </div>
       <div class="setting-row update-info hidden" id="update-info">
         <label></label>
-        <span>
+        <div class="setting-control"><span>
           <span id="update-version-text"></span>
           <button class="update-btn" id="releases-btn">GitHub Releases</button>
-        </span>
+        </span></div>
       </div>
     </div>
   </div>
