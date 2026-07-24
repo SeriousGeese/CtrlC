@@ -690,7 +690,9 @@
       showUpdateSettings(info);
     });
 
-    loadSettings();
+    loadSettings().finally(() => {
+      window.ctrlc.settingsReady();
+    });
   </script>
 </body>
 </html>

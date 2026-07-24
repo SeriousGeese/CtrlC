@@ -37,6 +37,7 @@ contextBridge.exposeInMainWorld('ctrlc', {
   // Windows
   openSettings: () => ipcRenderer.invoke('settings:open'),
   openAbout: () => ipcRenderer.invoke('about:open'),
+  settingsReady: () => ipcRenderer.invoke('settings:ready'),
 });
 
 declare global {
@@ -64,6 +65,7 @@ declare global {
       closePopup: () => Promise<void>;
       openSettings: () => Promise<void>;
       openAbout: () => Promise<void>;
+      settingsReady: () => Promise<void>;
     };
   }
 }
