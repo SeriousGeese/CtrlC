@@ -61,6 +61,7 @@ jobs:
           status=0
           for zip in release/*-mac-*.zip; do
             arch=$(basename "$zip" .zip); arch=${arch##*-}
+            [ "$arch" = x64 ] && arch=x86_64   # lipo's name for it
             dir=$(mktemp -d)
             unzip -q "$zip" -d "$dir"
             while IFS= read -r -d '' node; do
