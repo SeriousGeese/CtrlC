@@ -42,9 +42,38 @@ jobs:
       - name: Package
         # Skip code signing / notarization — no Apple Developer ID. Unsigned
         # mac builds require the user to right-click > Open (or `xattr -cr`).
+        #
+        # USE_HARD_LINKS=false: electron-builder hardlinks node_modules into
+        # the app bundle on CI. The mac build packages arm64 then rebuilds
+        # sqlite3 for x64 IN PLACE, which rewrote the arm64 bundle's
+        # node_sqlite3.node through the shared inode — v0.1.25's arm64 build
+        # shipped an x86_64 sqlite3 and crashed on launch on Apple Silicon.
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
+          USE_HARD_LINKS: false
         run: npx electron-builder ${{ matrix.args }} --publish never
+
+      - name: Verify mac native modules match bundle arch
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=0
+          for zip in release/*-mac-*.zip; do
+            arch=$(basename "$zip" .zip); arch=${arch##*-}
+            dir=$(mktemp -d)
+            unzip -q "$zip" -d "$dir"
+            while IFS= read -r -d '' node; do
+              got=$(lipo -archs "$node")
+              if [ "$got" != "$arch" ]; then
+                echo "::error::$zip: $(basename "$node") is '$got', expected '$arch'"
+                status=1
+              else
+                echo "ok  $zip: $(basename "$node") is $got"
+              fi
+            done < <(find "$dir" -name '*.node' -print0)
+          done
+          exit $status
 
       - uses: actions/upload-artifact@v4
         with:
